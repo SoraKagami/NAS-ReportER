@@ -12,6 +12,20 @@ TrueNASConfigEmailEncryption=""	 # Set this to "" for no encryption, MUST REMAIN
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 Config_File_Name="$SCRIPT_DIR/multi_report_config.txt"
 
+#####################################################
+#####		Setup file storage locations		#####
+#####################################################
+sessionID=$(date "+%y%m%d%H%M%S%3N")				# sessionID should be unique by using date: yymmddHHMMSSNNN (NNN = 2 most significant nanosecond values)
+tempFolderRoot="$PWD/Multi-Report"					# Used to be /tmp
+logFolder="${tempFolderRoot}/Logs"					# Logging related
+tempFolder="${tempFolderRoot}/Temp/${sessionID}"	# Files here will be deleted
+persistFolder="${tempFolderRoot}/Persist"			# Anything here may persist. Should at least survive end of script
+emailTemp="${tempFolder}/Email"						# Subfolder of $tempFolder specific to email related uses
+updateTemp="${tempFolder}/Update"					# Subfolder of $tempFolder for update files
+driveDataTemp="${tempFolder}/DriveData"				#
+spencerReport="/tmp/spencer_report.txt"				# Default: /tmp/spencer_report.txt
+#####################################################
+
 set -E -o functrace
 
 failure(){
@@ -56,15 +70,15 @@ failure(){
     fi
 
 #	echo "End: $(date)"
-    date >> /tmp/multi_report_errors.txt
+    date >> ${logFolder}/multi_report_errors.txt
     _output_array+=('---------------------------------')
 	printf '%s\n' "${_output_array[@]}"
-    printf '%s\n' "${_output_array[@]}" >> /tmp/multi_report_errors.txt
+    printf '%s\n' "${_output_array[@]}" >> ${logFolder}/multi_report_errors.txt
  #   exit ${_code}
 }
 
-if test -e "/tmp/multi_report_errors.txt"; then
-	rm /tmp/multi_report_errors.txt
+if test -e "${logFolder}/multi_report_errors.txt"; then
+	rm ${logFolder}/multi_report_errors.txt
 	echo "Deleted"
 fi
 
@@ -438,7 +452,7 @@ add_new_drive_factor="actual"	# This setting will add a new drive to the statist
 TrueNASConfigEmailEnable="true"		# Set to "true" to save config backup (which renders next two options operational); "false" to keep disable config backups.
 TrueNASConfigEmailDay="Mon"			# Set to the day of the week the config is emailed.  (All, Mon, Tue, Wed, Thu, Fri, Sat, Sun, Month)
 TrueNASConfigBackupSave="false"		# Set to "false" to delete TrueNAS config backup after mail is sent; "true" to keep it in dir below.
-TrueNASConfigBackupLocation="/tmp/"	# Directory in which to store the backup FreeNAS config files.
+TrueNASConfigBackupLocation="${persistFolder}"	# Directory in which to store the backup FreeNAS config files. (Used to be "/tmp/"
 
 ###### Attach multi_report_config.txt to email ######
 MRConfigEmailEnable="true"	# Set to "true" to enable periodic email (which renders next two options operational).
@@ -769,11 +783,8 @@ re='^[0-9]+$'
 runfilename="multi_report.sh"
 
 ### temp files have been converted to variable stored, not stored in /tmp/ as a file. ###
-tempfilepath=$(( 10 + $RANDOM % 1000 ))
-
-logfile="/tmp/${tempfilepath}smart_report_body.tmp"
-logfile_header="/tmp/${tempfilepath}smart_report_header.tmp"
-logfile_temp="/tmp/${tempfilepath}smart_report_temp.tmp"
+logfile="${emailTemp}/smart_report_body.tmp"
+logfile_header="${emailTemp}/smart_report_header.tmp"
 boundary="gc0p4Jq0M2Yt08jU534c0p"
 
 CurrentFilename="multi_report_v3.16_2025_02_25.txt"
@@ -791,7 +802,7 @@ physmem=$physmem$memunit
 uptime=$(midclt call system.info | jq -Mre '.uptime')
 	
 if [[ $softver != "Linux" ]]; then
-	top -d1 | head -n 7 > /tmp/memory_free.txt
+	top -d1 | head -n 7 > ${logFolder}/memory_free.txt
 
 	if [[ "$(cat /etc/version | grep "FreeNAS")" ]]; then
 		programver=progname$progverdate" (FreeNAS "$(cat /etc/version | cut -d " " -f1 | sed 's/FreeNAS-//')")"
@@ -810,7 +821,7 @@ if [[ $softver != "Linux" ]]; then
 	programver4="Total Memory: "$totalmem", Free Memory: "$freemem", "$swapused"<br>System Uptime: "$uptime
 	truenas_ver=$(cat /etc/version | cut -d"-" -f2 | cut -d"." -f1)	# Provides a whole number like '13'
 else
-	free > /tmp/memory_free.txt			# Add this to the dump
+	free > ${logFolder}/memory_free.txt			# Add this to the dump
 	totalmem=$(free -h | grep "Mem:" | awk '{printf $2}')
 	usedmem=$(free -h | grep "Mem:" | awk '{printf $3}')
 	freemem=$(free -h | grep "Mem:" | awk '{printf $4}')
@@ -842,7 +853,7 @@ fi
 	echo " "
 	echo "Up Time"
 	echo $uptime
-) >> /tmp/memory_free.txt
+) >> ${logFolder}/memory_free.txt
 	
 nvme_supports_selftest=""		# To stop nvme check if self-test not supported.
 drive_name=""
@@ -935,14 +946,14 @@ mefull=`basename "$0"`
 if [[ "$1" == "-ignore_lock" ||  "$2" == "-ignore_lock" ||  "$3" == "-ignore_lock" ||  "$4" == "-ignore_lock" || "$Ignore_Lock" == "enable" ]]; then
 	printf "Ignoring Multiple Instance Check\n" >&2
 else
-	if ! mkdir /tmp/multi_report.lock; then
+	if ! mkdir ${tempFolderRoot}/multi_report.lock; then
 		printf "Script is already Running... Exiting\n" >&2
-		printf "If this message is in error, remove '/tmp/multi_report.lock' directory or just reboot TrueNAS to recover.\n" >&2
+		printf "If this message is in error, remove '${tempFolderRoot}/multi_report.lock' directory or just reboot TrueNAS to recover.\n" >&2
 		exit 1
 	fi
 fi
 
-trap 'rm -rf /tmp/multi_report.lock' EXIT 	# Remove the lock directory on exit
+trap 'rm -rf ${tempFolderRoot}/multi_report.lock' EXIT 	# Remove the lock directory on exit
 
 #################### FUNCTIONS ####################
 
@@ -1009,23 +1020,23 @@ check_farm_data () {
 
 create_attachment_file () {
 	if [[ $Debug_Steps == "true" ]]; then echo "create_attachment"; fi
-	if test -e "/tmp/attachment.json"; then		# If the file exists then we need to add on to the end, but need to delete the last ']'.
+	if test -e "${emailTemp}/attachment.json"; then		# If the file exists then we need to add on to the end, but need to delete the last ']'.
 
 		# LETS SEE IF THE LIST ALREADY CONTAINS THIS FILE
-		if grep -q $2 "/tmp/attachment.json"; then
+		if grep -q $2 "${emailTemp}/attachment.json"; then
 			return
 		fi
 		
 		# I need to read the file back, remove the last 2 lines, add line ' },', then add new header.
-		updating_attachment=$(head -n -2 /tmp/attachment.json)  # This removes the last lines.
+		updating_attachment=$(head -n -2 ${emailTemp}/attachment.json)  # This removes the last lines.
 		(
 		echo "${updating_attachment}"
 		echo ' },'
-		) > /tmp/attachment.json
+		) > ${emailTemp}/attachment.json
 	else
 		(
 		echo '['
-		) > /tmp/attachment.json
+		) > ${emailTemp}/attachment.json
 	fi
 	encoded_content=$(base64 --wrap=0 $1)
 	# add header 'new' information
@@ -1047,7 +1058,7 @@ create_attachment_file () {
 		echo '  "content": "'"$encoded_content"'"'
 		echo ' }'
 		echo ']'
-	) >> /tmp/attachment.json
+	) >> ${emailTemp}/attachment.json
 	
 }
 
@@ -1064,10 +1075,10 @@ create_attachment_file () {
 
 spencer () {
 	if [[ $Debug_Steps == "true" ]]; then echo "spencer"; fi
-	# Check status of "/tmp/spencer_report.txt" file, then if we have errors process it.
+	# Check status of "${spencerReport}" file, then if we have errors process it.
 	spencer_error="false"
-	if [ -f "/tmp/spencer_report.txt" ]; then
-		if [ $(grep -wic "New Error Messages" "/tmp/spencer_report.txt") -gt 0 ]; then
+	if [ -f "${spencerReport}" ]; then
+		if [ $(grep -wic "New Error Messages" "${spencerReport}") -gt 0 ]; then
 			# Error Levels are: None, Warning, Critical
 			if [[ $spencer_new_warning_level == "Warning" ]]; then
 				logfile_warning=$logfile_warning"$(printf "Spencer New Error Data - See Attachment")"
@@ -1077,7 +1088,7 @@ spencer () {
 		spencer_error="true"
 		fi
 
-		if [ $(grep -wic "Previous" "/tmp/spencer_report.txt") -gt 0 ]; then
+		if [ $(grep -wic "Previous" "${spencerReport}") -gt 0 ]; then
 			# Error Levels are: None, Warning, Critical
 			if [[ $spencer_existing_warning_level == "Warning" ]]; then
 				logfile_warning=$logfile_warning"$(printf "Spencer Existing Error Data - See Attachment")"
@@ -2094,7 +2105,7 @@ number_to_letters () {
 purge_exportdata () {
 	if [[ $Debug_Steps == "true" ]]; then echo "purge_exportdata"; fi
 	# Delete temp file if it exists
-	if test -e "/tmp/temp_purge_file.csv"; then rm "/tmp/temp_purge_file.csv"; fi
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm "${tempFolder}/temp_purge_file.csv"; fi
 
 	if [ $softver != "Linux" ]; then
 		expireDate=$(date -v -"$SDF_DataPurgeDays"d +%Y/%m/%d)
@@ -2102,8 +2113,8 @@ purge_exportdata () {
 		expireDate=$(date -d "$SDF_DataPurgeDays days ago" +%Y/%m/%d) 
 	fi
 
-	awk -v expireDate="$expireDate" -F, '{ if($1 >= expireDate) print $0;}' "$statistical_data_file" > "/tmp/temp_purge_file.csv"
-	cp -R "/tmp/temp_purge_file.csv" "$statistical_data_file"
+	awk -v expireDate="$expireDate" -F, '{ if($1 >= expireDate) print $0;}' "$statistical_data_file" > "${tempFolder}/temp_purge_file.csv"
+	cp -R "${tempFolder}/temp_purge_file.csv" "$statistical_data_file"
 
 }
 
@@ -2114,10 +2125,10 @@ purge_testdata () {
 	if [[ $Debug_Steps == "true" ]]; then echo "purge_testdata"; fi
 	echo "Purging Statistical Database of Test Data"
 	# Delete temp file if it exists
-	if test -e "/tmp/temp_purge_file.csv"; then rm "/tmp/temp_purge_file.csv"; fi
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm "${tempFolder}/temp_purge_file.csv"; fi
 
-	awk -F, '{ if($3 != "TEST") print $0;}' "$statistical_data_file" > "/tmp/temp_purge_file.csv"
-	cp -R "/tmp/temp_purge_file.csv" "$statistical_data_file"
+	awk -F, '{ if($3 != "TEST") print $0;}' "$statistical_data_file" > "${tempFolder}/temp_purge_file.csv"
+	cp -R "${tempFolder}/temp_purge_file.csv" "$statistical_data_file"
 
 }
 
@@ -2128,19 +2139,19 @@ purge_testdata () {
 rewrite_csv () {
 	if [[ $Debug_Steps == "true" ]]; then echo "rewrite_csv"; fi
 	# Delete temp file if it exists
-	if test -e "/tmp/temp_purge_file.csv"; then rm "/tmp/temp_purge_file.csv"; fi
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm "${tempFolder}/temp_purge_file.csv"; fi
 
 	# Does file exist?
 
 	# If the file does not exist, create it.
 		printf "Date,Time,Device ID,Drive Type,Serial Number,SMART Status,Temp,Power On Hours,Wear Level,Start Stop Count,Load Cycle,Spin Retry,Reallocated Sectors,\
-Reallocated Sector Events,Pending Sectors,Offline Uncorrectable,UDMA CRC Errors,Seek Error Rate,Multi Zone Errors,Read Error Rate,Helium Level,Total MBytes Written,Total MBytes Read\n" > "/tmp/temp_purge_file.csv"
+Reallocated Sector Events,Pending Sectors,Offline Uncorrectable,UDMA CRC Errors,Seek Error Rate,Multi Zone Errors,Read Error Rate,Helium Level,Total MBytes Written,Total MBytes Read\n" > "${tempFolder}/temp_purge_file.csv"
 
 	# Now read current CSV file, skip line 1 and write the rest to the temp file.
-		cat $statistical_data_file | tail -n +2 >> "/tmp/temp_purge_file.csv"
+		cat $statistical_data_file | tail -n +2 >> "${tempFolder}/temp_purge_file.csv"
 
 	# Save the new file	
-	cp -R "/tmp/temp_purge_file.csv" "$statistical_data_file"
+	cp -R "${tempFolder}/temp_purge_file.csv" "$statistical_data_file"
 
 }
 
@@ -2150,7 +2161,7 @@ Reallocated Sector Events,Pending Sectors,Offline Uncorrectable,UDMA CRC Errors,
 read_csv () {
 	if [[ $Debug_Steps == "true" ]]; then echo "read_csv"; fi
 	# Delete temp file if it exists
-	if test -e "/tmp/temp_purge_file.csv"; then rm "/tmp/temp_purge_file.csv"; fi
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm "${tempFolder}/temp_purge_file.csv"; fi
 
 	if [[ $1 == "month" ]]; then
 		if [ $softver != "Linux" ]; then
@@ -2169,13 +2180,13 @@ read_csv () {
 # Need to read the date, S/N, and TDW, then make sure we can set TDW variable
 
 # Remove all earlier data and put rest in a temp file.
-	awk -v expireDate="$expireDate" -F, '{ if($1 >= expireDate) print $0;}' "$statistical_data_file" > "/tmp/temp_purge_file.csv"
+	awk -v expireDate="$expireDate" -F, '{ if($1 >= expireDate) print $0;}' "$statistical_data_file" > "${tempFolder}/temp_purge_file.csv"
 
 # Start at the beginning of the file, search for serial number, when match, grab last entry (TDW)
-#	tdw_read="$(cat /tmp/temp_purge_file.csv | grep -m 1 "${serial}" | cut -d',' -f22)"
-#	tdr_read="$(cat /tmp/temp_purge_file.csv | grep -m 1 "${serial}" | cut -d',' -f23)"
-	tdw_read="$(grep -m 1 "${serial}" /tmp/temp_purge_file.csv | cut -d',' -f22)"
-	tdr_read="$(grep -m 1 "${serial}" /tmp/temp_purge_file.csv | cut -d',' -f23)"
+#	tdw_read="$(cat ${tempFolder}/temp_purge_file.csv | grep -m 1 "${serial}" | cut -d',' -f22)"
+#	tdr_read="$(cat ${tempFolder}/temp_purge_file.csv | grep -m 1 "${serial}" | cut -d',' -f23)"
+	tdw_read="$(grep -m 1 "${serial}" ${tempFolder}/temp_purge_file.csv | cut -d',' -f22)"
+	tdr_read="$(grep -m 1 "${serial}" ${tempFolder}/temp_purge_file.csv | cut -d',' -f23)"
 
 # Place a fake zero in place of a null for the older file structure
 	if [[ $tdw_read == "" ]]; then
@@ -2188,7 +2199,7 @@ read_csv () {
 	
 	if [[ $tdr_read == "" ]]; then tdr_read="0"; fi   #  echo "No Statistical data on file for this drive."; fi
 
-	if test -e "/tmp/temp_purge_file.csv"; then rm "/tmp/temp_purge_file.csv"; fi
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm "${tempFolder}/temp_purge_file.csv"; fi
 
 }
 
@@ -2197,9 +2208,10 @@ read_csv () {
 cleanup_files () {
 	if [[ $Debug_Steps == "true" ]]; then echo "cleanup_files"; fi
 	### Clean up our temporary files
-	if test -e "/tmp/temp_purge_file.csv"; then rm /tmp/temp_purge_file.csv; fi
+	if test -e "${tempFolder}"; then rm -r ${tempFolder}; fi	# If implemented correctly, this should replace everything below.
+	if test -e "${tempFolder}/temp_purge_file.csv"; then rm ${tempFolder}/temp_purge_file.csv; fi
 	if test -e "/tmp/*smart_report*"; then rm /tmp/*smart_report*; fi   # > /dev/null 2>&1
-	if test -e "/tmp/${tempfilepath}*"; then rm /tmp/${tempfilepath}*; fi   # > /dev/null 2>&1
+	if test -e "${driveDataTemp}"; then rm -r "${driveDataTemp}"; fi   # > /dev/null 2>&1
 	### Clean up multiple drive data files
 	f=(/tmp/*_a.txt)
 	if [[ -f "${f[0]}" ]]; then rm /tmp/*_a.txt; fi
@@ -2241,9 +2253,9 @@ cleanup_files () {
 	if test -e "/tmp/pwenc_secret.md5"; then rm "/tmp/pwenc_secret.md5"; fi
 	if test -e "/tmp/pwenc_secret.sha256"; then rm "/tmp/pwenc_secret.sha256"; fi
 	if test -e "/tmp/drive_selftest_log.txt"; then rm "/tmp/drive_selftest_log.txt"; fi
-	if test -e "/tmp/attachment.json"; then rm "/tmp/attachment.json"; fi
+	if test -e "${emailTemp}/attachment.json"; then rm "${emailTemp}/attachment.json"; fi
 	if test -e "/tmp/attachment_files.txt"; then rm "/tmp/attachment_files.txt"; fi
-	if test -e "/tmp/memory_free.txt"; then rm "/tmp/memory_free.txt"; fi
+	if test -e "${logFolder}/memory_free.txt"; then rm "${logFolder}/memory_free.txt"; fi
 	if test -e "/tmp/gptid.txt"; then rm "/tmp/gptid.txt"; fi
 	if test -e "/tmp/json_error_log.txt"; then rm "/tmp/json_error_log.txt"; fi
 	if test -e "/tmp/logfile_tmp"; then rm "/tmp/logfile_tmp"; fi
@@ -2254,7 +2266,7 @@ cleanup_files () {
 
 
 	### Clean up Spencer File
-	if test -e "/tmp/spencer_report.txt"; then rm "/tmp/spencer_report.txt"; fi
+	if test -e "${spencerReport}"; then rm "${spencerReport}"; fi
 
 	### Clean up Drive Self-test files
 	if test -e "/tmp/drive_test_temp.txt"; then rm "/tmp/drive_test_temp.txt"; fi
@@ -2454,7 +2466,7 @@ create_Email () {
 
 # No Attachments (No attachment file required) (works)
 
-	if ! test -e "/tmp/attachment.json"; then
+	if ! test -e "${emailTemp}/attachment.json"; then
 		if [[ $truenas_sendmail_support == "Yes" ]]; then
 			echo "Using TrueNAS sendmail function"
 			sendmail -t -oi < "$logfile_header"		# I have no idea if the format will be good or not.
@@ -2501,10 +2513,10 @@ create_Email () {
 		fi
 		if test -e "/tmp/sendemail_error.txt"; then rm /tmp/sendemail_error.txt; fi
 
-		#(	curl -k –location-trusted -i -u $curl_account:$curl_password --form-string 'data={"method": "mail.send", "params": [{"subject": "'"${subject}"'", "to": ["'"${Email}"'"], "html": "'"${html_data}"'", "attachments": true}]}' -F "file=@/tmp/attachment.json" http://127.0.0.1:${port_address}/_upload/) > /dev/null 2<&1
+		#(	curl -k –location-trusted -i -u $curl_account:$curl_password --form-string 'data={"method": "mail.send", "params": [{"subject": "'"${subject}"'", "to": ["'"${Email}"'"], "html": "'"${html_data}"'", "attachments": true}]}' -F "file=@${emailTemp}/attachment.json" http://127.0.0.1:${port_address}/_upload/) > /dev/null 2<&1
 	fi
 
-	if test -e "/tmp/attachment.json"; then rm "/tmp/attachment.json"; fi
+	if test -e "${emailTemp}/attachment.json"; then rm "${emailTemp}/attachment.json"; fi
 
 
 }
@@ -2629,16 +2641,16 @@ dump_drive_partition () {
 #			if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
 		
 			if [[ $Partition_Backup == "true" ]] && [[ $Attach_Files1 == "true" ]]; then
-				if test -e "/tmp/${tempfilepath}_${drive}_${serial1}.partition"; then
+				if test -e "${driveDataTemp}/${drive}_${serial1}.partition"; then
 					if [[ "$truenas_sendmail_support" == "No" ]]; then
-						(echo "create_attachment_file /tmp/${tempfilepath}_${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
+						(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
 					else
 						(
 						echo "--${boundary}"
 						echo "Content-Type: application/octet-stream"
 						echo "Content-Transfer-Encoding: base64"
 						echo "Content-Disposition: attachment; filename=${serial1}_SGDISK_Partition.par"
-						base64 "/tmp/${tempfilepath}_${drive}_${serial1}.partition"
+						base64 "${driveDataTemp}/${drive}_${serial1}.partition"
 						) >> "$logfile"
 					fi
 				fi
@@ -2662,30 +2674,30 @@ dump_drive_data () {
 		if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
 #		(
 		if [[ $json_error_log != "" ]]; then
-			if test -e "/tmp/${tempfilepath}${drive}_${serial1}_a.txt"; then
+			if test -e "${driveDataTemp}/${drive}_${serial1}_a.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/${tempfilepath}${drive}_${serial1}_a.txt ${drive}_${serial1}_a.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_a.txt ${drive}_${serial1}_a.txt" >> /tmp/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=${drive}_${serial1}_a.txt"
-					base64 "/tmp/${tempfilepath}${drive}_${serial1}_a.txt"
+					base64 "${driveDataTemp}/${drive}_${serial1}_a.txt"
 					) >> "$logfile"
 				fi
 			fi
 
-			if test -e "/tmp/${tempfilepath}${drive}_${serial1}_x.txt"; then
+			if test -e "${driveDataTemp}/${drive}_${serial1}_x.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/${tempfilepath}${drive}_${serial1}_x.txt ${drive}_${serial1}_x.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_x.txt ${drive}_${serial1}_x.txt" >> /tmp/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=${drive}_${serial1}_x.txt"
-					base64 "/tmp/${tempfilepath}${drive}_${serial1}_x.txt"
+					base64 "${driveDataTemp}/${drive}_${serial1}_x.txt"
 					) >> "$logfile"
 				fi
 			fi
@@ -2693,99 +2705,99 @@ dump_drive_data () {
 		# Get all the data, NVMe may not produce results until TrueNAS has incorporated the middleware.
 
 		if [[ $(midclt call disk.smart_attributes $drive | jq | grep "python") == "" ]]; then
-			midclt call disk.smart_attributes $drive | jq > "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.json"
+			midclt call disk.smart_attributes $drive | jq > "${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json"
 		fi > /dev/null 2<&1
 
-		if test -e "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.json"; then
+		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.json ${drivetype}_${drive}_${serial1}_API.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json ${drivetype}_${drive}_${serial1}_API.json" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=${drivetype}_${drive}_${serial1}_API.json"
-				base64 "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_API.json"
+				base64 "${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json"
 				) >> "$logfile"
 			fi
 		fi
 
-		if test -e "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}.json"; then
+		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}.json ${drivetype}_${drive}_${serial1}.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}.json ${drivetype}_${drive}_${serial1}.json" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=${drivetype}_${drive}_${serial1}.json"
-				base64 "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}.json"
+				base64 "${driveDataTemp}/${drivetype}_${drive}_${serial1}.json"
 				) >> "$logfile"
 			fi
 		fi
 
 		if [[ $drivetype == "NVM" ]]; then
 			if [[ $softver != "Linux" ]]; then
-				$(nvmecontrol logpage -p 0x06 $drive > /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Selftest_Log.json)
-				$(nvmecontrol logpage -p 0x01 $drive > /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Error_Log.json)
+				$(nvmecontrol logpage -p 0x06 $drive > ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json)
+				$(nvmecontrol logpage -p 0x01 $drive > ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json)
 			else
-				$(nvme self-test-log --output-format=json /dev/${drive} > /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Selftest_Log.json)
-				$(nvme error-log /dev/${drive} > /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Error_Log.json)
+				$(nvme self-test-log --output-format=json /dev/${drive} > ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json)
+				$(nvme error-log /dev/${drive} > ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json)
 			fi
 		fi
 
-		if test -e "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Selftest_Log.json"; then
+		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Selftest_Log.json ${drivetype}_${drive}_${serial1}_Selftest_Log.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json ${drivetype}_${drive}_${serial1}_Selftest_Log.json" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=${drivetype}_${drive}_${serial1}_Selftest_Log.json"
-				base64 "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Selftest_Log.json"
+				base64 "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json"
 				) >> "$logfile"
 			fi
 		fi
 
-		if test -e "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Error_Log.json"; then
+		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Error_Log.json ${drivetype}_${drive}_${serial1}_Error_Log.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json ${drivetype}_${drive}_${serial1}_Error_Log.json" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=${drivetype}_${drive}_${serial1}_Error_Log.json"
-				base64 "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}_Error_Log.json"
+				base64 "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json"
 				) >> "$logfile"
 			fi
 		fi
 		if [[ $Partition_Backup == "true" ]] && [[ $Attach_Files1 == "true" ]]; then
-			if test -e "/tmp/${tempfilepath}_${drive}_${serial1}.partition"; then
+			if test -e "${driveDataTemp}/${drive}_${serial1}.partition"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/${tempfilepath}_${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: application/octet-stream"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=${serial1}_SGDISK_Partition.par"
-					base64 "/tmp/${tempfilepath}_${drive}_${serial1}.partition"
+					base64 "${driveDataTemp}/${drive}_${serial1}.partition"
 					) >> "$logfile"
 				fi
 			fi
 		fi
-		if test -e "/tmp/multi_report_errors.txt"; then
+		if test -e "${logFolder}/multi_report_errors.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/multi_report_errors.txt multi_report_errors.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${logFolder}/multi_report_errors.txt multi_report_errors.txt" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=multi_report_errors.txt"
-				base64 "/tmp/multi_report_errors.txt"
+				base64 "${logFolder}/multi_report_errors.txt"
 				) >> "$logfile"
 			fi
 		fi
@@ -2822,17 +2834,17 @@ dump_drive_data () {
 				) >> "$logfile"
 			fi
 		fi
-		if test -e "/tmp/memory_free.txt"; then
+		if test -e "${logFolder}/memory_free.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/memory_free.txt memory_free.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${logFolder}/memory_free.txt memory_free.txt" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=memory_free.txt"
-				base64 "/tmp/memory_free.txt"
-				rm "/tmp/memory_free.txt"
+				base64 "${logFolder}/memory_free.txt"
+				rm "${logFolder}/memory_free.txt"
 				) >> "$logfile"
 			fi
 		fi	
@@ -3758,7 +3770,7 @@ get_json_data () {
 			rpm="$(echo "${tempjson}" | jq -Mre '.rotation_rate | values')"
 			if [[ "$rpm" == "0" ]]; then drivetype="SSD"; else drivetype="HDD"; fi
 			if [[ "$(echo $tempjson | grep -i "nvm")" ]]; then drivetype="NVM"; fi
-			echo "$tempjson" > "/tmp/${tempfilepath}${drivetype}_${drive}_${serial1}.json"
+			echo "$tempjson" > "${driveDataTemp}/${drivetype}_${drive}_${serial1}.json"
 		fi
 	fi
 
@@ -4680,14 +4692,14 @@ get_drive_data () {
 #		if ! [[ "$(find /usr/ -name "sgdisk")" ]]; then
 #			echo "sgdisk not found" >> "$logfile_caution"
 #		else		
-		sgdisk -b="/tmp/${tempfilepath}_${drive}_${serial}.partition" /dev/${drive} > /dev/null 2<&1
+		sgdisk -b="${driveDataTemp}/${drive}_${serial}.partition" /dev/${drive} > /dev/null 2<&1
 #		fi
 	fi
 
 	get_json_data		# Save data for -dump routine
 	if [[ "$dump_all" == "4" ]]; then	# Dump '-dump emailextra | emailall'
-		"$(echo "$smartdata" > /tmp/${tempfilepath}${drive}_$"{serial}"_a.txt)" 2> /dev/null
-		"$(smartctl -x /dev/"$drive" > /tmp/${tempfilepath}${drive}_$"{serial}"_x.txt)" 2> /dev/null
+		"$(echo "$smartdata" > ${driveDataTemp}/${drive}_$"{serial}"_a.txt)" 2> /dev/null
+		"$(smartctl -x /dev/"$drive" > ${driveDataTemp}/${drive}_$"{serial}"_x.txt)" 2> /dev/null
 	fi
 
 # Add a line return between drives
@@ -5858,18 +5870,18 @@ attach_files () {
 		
 	fi
 
-	if test -e "/tmp/spencer_report.txt"; then
+	if test -e "${spencerReport}"; then
 		
-		if [ $(grep -wic "New Error Messages" "/tmp/spencer_report.txt") -gt 0 ] || [ $(grep -wic "Previous" "/tmp/spencer_report.txt") -gt 0 ]; then
+		if [ $(grep -wic "New Error Messages" "${spencerReport}") -gt 0 ] || [ $(grep -wic "Previous" "${spencerReport}") -gt 0 ]; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file /tmp/spencer_report.txt spencer_report.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${spencerReport} spencer_report.txt" >> /tmp/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=spencer_report.txt"
-				base64 "/tmp/spencer_report.txt"
+				base64 "${spencerReport}"
 				) >> "$logfile"
 			fi
 		fi	
