@@ -958,6 +958,56 @@ trap 'rm -rf ${tempFolderRoot}/multi_report.lock' EXIT 	# Remove the lock direct
 
 #################### FUNCTIONS ####################
 
+#######################################
+# delete_IfExist(): Takes a file path input argument then checks if it exists. If it exists, attempt to delete it.
+# GLOBALS:
+#	(None used)
+# ARGUMENTS:
+#	1 = (String) Path to File to check for and if it exists, delete it.
+# OUTPUTS:
+#	(None)
+# RETURN:
+#	0 = No file found, nothing deleted
+#	1 = File found, deleted
+#	2 = No input argument was provided, nothing deleted
+#	3 = More than one input argument detected, no deletion attempt made
+#######################################
+delete_IfExist () {
+	if [ $# -eq 0 ]; then return 2; fi	# If no input argument was provided, Return Code: 2
+	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
+	if test -e $1; then
+		rm $1 # Remove file
+		echo "File $1 was removed."
+		return 1	# Done, Return Code: 1
+	fi
+	return 0	# Nothing deleted, Return Code: 0
+}
+
+#######################################
+# deleteFolder_IfExist(): Takes a folder path input argument then checks if it exists. If it exists, attempt to the folder & contents.
+# GLOBALS:
+#	(None used)
+# ARGUMENTS:
+#	1 = (String) Path to folder to check for and if it exists, delete it recursively to remove any files & subfolders inside (-f forced).
+# OUTPUTS:
+#	(None)
+# RETURN:
+#	0 = No folder found, nothing deleted
+#	1 = Folder found, deleted
+#	2 = No input argument was provided, nothing deleted
+#	3 = More than one input argument detected, no deletion attempt made
+#######################################
+deleteFolder_IfExist () {
+	if [ $# -eq 0 ]; then return 2; fi	# If no input argument was provided, Return Code: 2
+	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
+	if test -e $1; then
+		rm -r -f $1 # Remove everything recursively including the folder, it's files & subfolders. -f flag to force & remove need for user input
+		echo "Folder $1 was removed."
+		return 1	# Done, Return Code: 1
+	fi
+	return 0	# Nothing deleted, Return Code: 0
+}
+
 ########## CHECK SEAGATE FARM DATA ##########
 # This will check the Seagate FARM data to ensure it matches the SMART data.
 # If it doesn't the drive data has been modified and we need to alert the user.
@@ -1242,7 +1292,7 @@ update_smr () {
 	#	echo "Downloading SMR-CHECK Script for GitHub"
 	#	echo "Removing Old Script if it exists"
 	if test -e "${persistFolder}/truenas-smr-check"; then rm -R "${persistFolder}/truenas-smr-check"; echo "Directory Removed";fi  # Failed, possible loop
-	if test -e "smr-check.sh"; then rm "smr-check.sh"; echo "File Removed"; fi
+	if test -e "${updateTemp}/smr-check.sh"; then rm "${updateTemp}/smr-check.sh"; echo "File Removed"; fi
 	#	echo "Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
@@ -1252,6 +1302,8 @@ update_smr () {
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/smr-check.sh
 		)
 		cp ${updateTemp}/smr-check.sh $SCRIPT_DIR"/."
+		# Cleanup
+		delete_IfExist "${updateTemp}/smr-check.sh"
 	fi
 	#	echo "File downloaded...  Continuing with Multi-Report script..."
 
@@ -1274,11 +1326,14 @@ check_gdisk () {
 					curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/sgdisk
 				)
 			fi
-			cp /tmp/gdisk /usr/local/sbin
-			cp /tmp/sgdisk /usr/local/sbin
+			cp ${updateTemp}/gdisk /usr/local/sbin
+			cp ${updateTemp}/sgdisk /usr/local/sbin
 			chmod +x /usr/local/sbin/gdisk
 			chmod +x /usr/local/sbin/sgdisk
 			echo "gdisk and sgdisk copied to /usr/local/sbin and made executable."
+			# Cleanup
+			delete_IfExist "${updateTemp}/gdisk"
+			delete_IfExist "${updateTemp}/sgdisk"
 		fi
 		if ! [[ "$(find /usr/ -name "sgdisk")" ]]; then
 			echo "sgdisk not found"							# WE NEED TO COPY THE FILE
@@ -1423,7 +1478,7 @@ update_Drive_script () {
 			chmod 755 $SCRIPT_DIR"/drive_selftest.sh" > /dev/null 2<&1
 
 			# Copy the User Guide
-			cp "/tmp/Multi-Report/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
+			cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
 			echo " "
 			echo "      - Script updated, copy of the 'Drive-Selftest User Guide'"
 			echo "        is in your directory."
@@ -2264,7 +2319,8 @@ cleanup_files () {
 	if test -e "${emailTemp}/json_error_log.txt"; then rm "${emailTemp}/json_error_log.txt"; fi
 	if test -e "${emailTemp}/output.html"; then rm "${emailTemp}/output.html"; fi
 	if test -e "${emailTemp}/attachment_files2.txt"; then rm "${emailTemp}/attachment_files2.txt"; fi
-
+	delete_IfExist "{updateTemp}/gdisk"
+	delete_IfExist "{updateTemp}/sgdisk"
 
 	### Clean up Spencer File
 	if test -e "${spencerReport}"; then rm "${spencerReport}"; fi
@@ -2492,7 +2548,7 @@ create_Email () {
 		sed 's/\w*.//' ${emailTemp}/attachment_files.txt | sed 's/\s.*$//' > ${emailTemp}/attachment_files2.txt
 		sleep .1
 
-		if test -e "/tmp/temp_attach.txt"; then rm /tmp/temp_attach.txt; fi
+		if test -e "${emailTemp}/temp_attach.txt"; then rm ${emailTemp}/temp_attach.txt; fi
 		while read line; do
 			attachment+=("$line")
 		done < ${emailTemp}/attachment_files2.txt
@@ -2503,16 +2559,16 @@ create_Email () {
 			--subject "$subject" \
 			--to_address "$Email" \
 			--mail_body_html "$logfile_header" \
-			--attachment_files "${attachment[@]}" > /tmp/sendemail_error.txt
+			--attachment_files "${attachment[@]}" > ${emailTemp}/sendemail_error.txt
 
 		# Check Exit Code
 		if [[ $? -ne 0 ]]; then
 			echo "Sendemail had a problem.  Check the file log at "$SCRIPT_DIR"/sendmail_log"
-			cat /tmp/sendemail_error.txt
+			cat ${emailTemp}/sendemail_error.txt
 		else
 			echo "Email Sent"
 		fi
-		if test -e "/tmp/sendemail_error.txt"; then rm /tmp/sendemail_error.txt; fi
+		if test -e "${emailTemp}/sendemail_error.txt"; then rm ${emailTemp}/sendemail_error.txt; fi
 
 		#(	curl -k –location-trusted -i -u $curl_account:$curl_password --form-string 'data={"method": "mail.send", "params": [{"subject": "'"${subject}"'", "to": ["'"${Email}"'"], "html": "'"${html_data}"'", "attachments": true}]}' -F "file=@${emailTemp}/attachment.json" http://127.0.0.1:${port_address}/_upload/) > /dev/null 2<&1
 	fi
@@ -11654,7 +11710,7 @@ fi
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
 			cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
-			cp "/tmp/Multi-Report/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
+			cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
 		fi
 		)
 	fi
