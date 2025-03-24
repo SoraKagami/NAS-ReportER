@@ -781,6 +781,7 @@ testdata_path="data"
 Dump_Loop="0"
 re='^[0-9]+$'
 runfilename="multi_report.sh"
+Config_Name=""	# This var is set & referenced in function config_backup(), and also used by attach_files()
 
 ### temp files have been converted to variable stored, not stored in /tmp/ as a file. ###
 logfile="${emailTemp}/smart_report_body.tmp"
@@ -1238,17 +1239,17 @@ update_smr () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_smr"; fi
 	#	echo "Downloading SMR-CHECK Script for GitHub"
 	#	echo "Removing Old Script if it exists"
-	if test -e "/tmp/truenas-smr-check"; then rm -R "/tmp/truenas-smr-check"; echo "Directory Removed";fi  # Failed, possible loop
+	if test -e "${persistFolder}/truenas-smr-check"; then rm -R "${persistFolder}/truenas-smr-check"; echo "Directory Removed";fi  # Failed, possible loop
 	if test -e "smr-check.sh"; then rm "smr-check.sh"; echo "File Removed"; fi
 	#	echo "Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
 		
 		(
-			cd /tmp
+			cd ${updateTemp}
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/smr-check.sh
 		)
-		cp /tmp/smr-check.sh $SCRIPT_DIR"/."
+		cp ${updateTemp}/smr-check.sh $SCRIPT_DIR"/."
 	fi
 	#	echo "File downloaded...  Continuing with Multi-Report script..."
 
@@ -1266,7 +1267,7 @@ check_gdisk () {
 			if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 				# Go git the file
 				(
-					cd /tmp
+					cd ${updateTemp}
 					curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/gdisk
 					curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/sgdisk
 				)
@@ -1527,7 +1528,7 @@ checkforupdate () {
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
 		(
-			cd /tmp
+			cd ${updateTemp}
 			if ! test -e "Multi-Report"; then
 				mkdir Multi-Report
 			fi
@@ -1576,7 +1577,7 @@ checkforupdate () {
 
 # Go git the file
 		(
-			cd /tmp
+			cd ${updateTemp}
 			if ! test -e "Multi-Report"; then
 				mkdir Multi-Report
 			fi
@@ -1626,7 +1627,7 @@ checkforupdate () {
 # Go git the file
 		if [[ $softver == "Linux" ]]; then
 			(
-				cd /tmp
+				cd ${updateTemp}
 				if ! test -e "Multi-Report"; then
 					mkdir Multi-Report
 				fi
@@ -1681,7 +1682,7 @@ checkforupdate () {
 		fi
 # Go git the file
 		(
-			cd /tmp
+			cd ${updateTemp}
 			if ! test -e "Multi-Report"; then
 				mkdir Multi-Report
 			fi
@@ -2231,8 +2232,8 @@ cleanup_files () {
 	if [[ -f "${f[0]}" ]]; then rm /tmp/zpoolstatus.txt; fi
 	f=(/tmp/*smart_report*)
 	if [[ -f "${f[0]}" ]]; then rm /tmp/*smart_report*; fi
-	f=(/tmp/truenas-smr-check)
-	if [[ -f "${f[0]}" ]]; then rm -R /tmp/truenas-smr-check; fi
+	f=(${persistFolder}/truenas-smr-check)
+	if [[ -f "${f[0]}" ]]; then rm -R ${persistFolder}/truenas-smr-check; fi
 	
 	if [[ -f "/tmp/selftestlog" ]]; then rm /tmp/selftestlog; fi
 #	if [[ -f "/tmp/*.partition" ]]; then rm /tmp/*.partition; fi
@@ -2241,20 +2242,20 @@ cleanup_files () {
 
 
 	### Clean up individual files
-	if test -e "/tmp/${Config_Name}.db"; then rm "/tmp/${Config_Name}.db"; fi
-	if test -e "/tmp/config_backup.md5"; then rm /tmp/config_backup.md5; fi
-	if test -e "/tmp/config_backup.sha256"; then rm /tmp/config_backup.sha256; fi
-	if test -e "/tmp/${Config_Name}.zip"; then rm "/tmp/$Config_Name.zip"; fi
-	if test -e "/tmp/${Config_Name}.tar"; then rm "/tmp/$Config_Name.tar"; fi
-	if test -e "/tmp/freenas-v1.db"; then rm "/tmp/freenas-v1.db"; fi
-	if test -e "/tmp/freenas-v1.md5"; then rm "/tmp/freenas-v1.md5"; fi
-	if test -e "/tmp/freenas-v1.sha256"; then rm "/tmp/freenas-v1.sha256"; fi
-	if test -e "/tmp/pwenc_secret"; then rm "/tmp/pwenc_secret"; fi
-	if test -e "/tmp/pwenc_secret.md5"; then rm "/tmp/pwenc_secret.md5"; fi
-	if test -e "/tmp/pwenc_secret.sha256"; then rm "/tmp/pwenc_secret.sha256"; fi
+	if test -e "${tempFolder}/${Config_Name}.db"; then rm "${tempFolder}/${Config_Name}.db"; fi
+	if test -e "${tempFolder}/config_backup.md5"; then rm ${tempFolder}/config_backup.md5; fi
+	if test -e "${tempFolder}/config_backup.sha256"; then rm ${tempFolder}/config_backup.sha256; fi
+	if test -e "${tempFolder}/${Config_Name}.zip"; then rm "${tempFolder}/$Config_Name.zip"; fi
+	if test -e "${tempFolder}/${Config_Name}.tar"; then rm "${tempFolder}/$Config_Name.tar"; fi
+	if test -e "${tempFolder}/freenas-v1.db"; then rm "${tempFolder}/freenas-v1.db"; fi
+	if test -e "${tempFolder}/freenas-v1.md5"; then rm "${tempFolder}/freenas-v1.md5"; fi
+	if test -e "${tempFolder}/freenas-v1.sha256"; then rm "${tempFolder}/freenas-v1.sha256"; fi
+	if test -e "${tempFolder}/pwenc_secret"; then rm "${tempFolder}/pwenc_secret"; fi
+	if test -e "${tempFolder}/pwenc_secret.md5"; then rm "${tempFolder}/pwenc_secret.md5"; fi
+	if test -e "${tempFolder}/pwenc_secret.sha256"; then rm "${tempFolder}/pwenc_secret.sha256"; fi
 	if test -e "/tmp/drive_selftest_log.txt"; then rm "/tmp/drive_selftest_log.txt"; fi
 	if test -e "${emailTemp}/attachment.json"; then rm "${emailTemp}/attachment.json"; fi
-	if test -e "/tmp/attachment_files.txt"; then rm "/tmp/attachment_files.txt"; fi
+	if test -e "${emailTemp}/attachment_files.txt"; then rm "${emailTemp}/attachment_files.txt"; fi
 	if test -e "${logFolder}/memory_free.txt"; then rm "${logFolder}/memory_free.txt"; fi
 	if test -e "/tmp/gptid.txt"; then rm "/tmp/gptid.txt"; fi
 	if test -e "/tmp/json_error_log.txt"; then rm "/tmp/json_error_log.txt"; fi
@@ -2352,7 +2353,7 @@ get_sendemail () {
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
 		(
-			cd /tmp
+			cd ${updateTemp}
 			curl -LJOs https://raw.githubusercontent.com/oxyde1989/standalone-tn-send-email/refs/heads/main/multireport_sendemail.py
 		)
 
@@ -2436,19 +2437,19 @@ create_Email () {
 	html_data=$(cat $logfile_header | jq -Rs .)	#Expecting ',' delimiter: line 1 column 145 (char 144)
 
 	if [[ $truenas_sendmail_support == "No" ]]; then 	# ONLY DO THIS IF WE MUST USE CURL, FORCING ATTACHMENTS.
-		if ! test -e "/tmp/attachment_files.txt"; then
-			touch /tmp/attachment_files.txt	# NEED THIS TO CREATE AN EMPTY FILE.  THIS IS A TEMOPARY MEASURE UNTIL WE CAN SEND HTML IN CRON, LIKE WE CAN IN CLI.
+		if ! test -e "${emailTemp}/attachment_files.txt"; then
+			touch ${emailTemp}/attachment_files.txt	# NEED THIS TO CREATE AN EMPTY FILE.  THIS IS A TEMOPARY MEASURE UNTIL WE CAN SEND HTML IN CRON, LIKE WE CAN IN CLI.
 		fi
 	fi
 
-	if test -e /tmp/attachment_files.txt; then
+	if test -e ${emailTemp}/attachment_files.txt; then
 		# WE NEED TO FORCE EVERYTHING TO BE AN ATTACHMENT UNTIL WE CAN FIX THE ISSUE WITH THE BODY NOT ACCEPTING THE FULL HTML FILE.
 		create_attachment_file $logfile_header Chart.html
 
 		if [[ $dump_all != "0" ]]; then
 			tar_attachments
 		fi
-		while read line; do eval "$line"; done < /tmp/attachment_files.txt
+		while read line; do eval "$line"; done < ${emailTemp}/attachment_files.txt
 		html_data="Due to TrueNAS 24.10.1 and later (for now) changing the email software, the chart you are use to seeing is now an attachment called <b>'Chart.html'</b>.<br><br>This will only happen when you have attachments acompanying the email.  If you have no attachments then the Email body will display the Chart.html data as it use to.<br><br>This will be fixed as soon as a solution becomes available.<br><br>Thank you,<br>The Management"
 		
 		if [[ $subject == $Subject_Line_Normal ]]; then
@@ -2488,7 +2489,7 @@ create_Email () {
 
 	#	port_address=$(midclt call system.general.config | jq | grep ui_port | sed "s/[^0-9.]*//g")
 
-		sed 's/\w*.//' /tmp/attachment_files.txt | sed 's/\s.*$//' > /tmp/attachment_files2.txt
+		sed 's/\w*.//' ${emailTemp}/attachment_files.txt | sed 's/\s.*$//' > /tmp/attachment_files2.txt
 		sleep .1
 
 		if test -e "/tmp/temp_attach.txt"; then rm /tmp/temp_attach.txt; fi
@@ -2552,7 +2553,7 @@ config_backup () {
 
 		if [[ "$doit" == "true" ]]; then
 			# Set up file names, etc for later
-			tarfile="/tmp/config_backup.zip"
+			tarfile="${tempFolder}/config_backup.zip"
 
 			### Test config integrity
 
@@ -2561,7 +2562,7 @@ config_backup () {
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
 					(echo "echo 'echo "<b>Automatic backup of FreeNAS configuration has failed! The configuration file is corrupted!</b>"
 					echo "<b>You should correct this problem as soon as possible!</b>"
-					echo "<br>"'" >> /tmp/attachment_files.txt)
+					echo "<br>"'" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -2575,18 +2576,18 @@ config_backup () {
 				Attach_TrueNAS_Config="true"
 				Attach_Files1="true"
 				# Config integrity check passed; copy config db, generate checksums, make .zip archive
-				cp /data/freenas-v1.db "/tmp/freenas-v1.db"
-				cp /data/pwenc_secret "/tmp/pwenc_secret"
+				cp /data/freenas-v1.db "${tempFolder}/freenas-v1.db"
+				cp /data/pwenc_secret "${tempFolder}/pwenc_secret"
 				if [ $softver != "Linux" ]; then
-					md5 "/tmp/freenas-v1.db" > /tmp/freenas-v1.md5
-					sha256 "/tmp/freenas-v1.db" > /tmp/freenas-v1.sha256
-					md5 "/tmp/pwenc_secret" > /tmp/pwenc_secret.md5
-					sha256 "/tmp/pwenc_secret" > /tmp/pwenc_secret.sha256
+					md5 "${tempFolder}/freenas-v1.db" > ${tempFolder}/freenas-v1.md5
+					sha256 "${tempFolder}/freenas-v1.db" > ${tempFolder}/freenas-v1.sha256
+					md5 "${tempFolder}/pwenc_secret" > ${tempFolder}/pwenc_secret.md5
+					sha256 "${tempFolder}/pwenc_secret" > ${tempFolder}/pwenc_secret.sha256
 				else
-					md5sum "/tmp/freenas-v1.db" > /tmp/freenas-v1.md5
-					sha256sum "/tmp/freenas-v1.db" > /tmp/freenas-v1.sha256
-					md5sum "/tmp/pwenc_secret" > /tmp/pwenc_secret.md5
-					sha256sum "/tmp/pwenc_secret" > /tmp/pwenc_secret.sha256
+					md5sum "${tempFolder}/freenas-v1.db" > ${tempFolder}/freenas-v1.md5
+					sha256sum "${tempFolder}/freenas-v1.db" > ${tempFolder}/freenas-v1.sha256
+					md5sum "${tempFolder}/pwenc_secret" > ${tempFolder}/pwenc_secret.md5
+					sha256sum "${tempFolder}/pwenc_secret" > ${tempFolder}/pwenc_secret.sha256
 				fi
 
 				if [[ $TrueNASConfigEmailEncryption != "" ]]; then
@@ -2597,7 +2598,7 @@ config_backup () {
 				fi
 
 				(
-					cd "/tmp/" || exit;
+					cd "${tempFolder}" || exit;
 					if [[ $TrueNASConfigEmailEncryption != "" ]]; then
 						if [ $softver != "Linux" ]; then
 						# Core - Encrypt
@@ -2620,8 +2621,8 @@ config_backup () {
 				# If logfile saving is enabled, copy .zip file to specified location before it (and everything else) is removed below
 				if [ "$TrueNASConfigBackupSave" == "true" ]; then
 					TrueNASConfigBackupLocation="$(echo $TrueNASConfigBackupLocation | sed 's:/*$::')"
-					if [[ $TrueNASConfigBackupLocation != "/tmp" ]]; then
-						cp "/tmp/${Config_Name}" "${TrueNASConfigBackupLocation}/${Config_Name}"
+					if [[ $TrueNASConfigBackupLocation != "${tempFolder}" ]]; then
+						cp "${tempFolder}/${Config_Name}" "${TrueNASConfigBackupLocation}/${Config_Name}"
 					fi
 				fi
 			fi
@@ -2643,7 +2644,7 @@ dump_drive_partition () {
 			if [[ $Partition_Backup == "true" ]] && [[ $Attach_Files1 == "true" ]]; then
 				if test -e "${driveDataTemp}/${drive}_${serial1}.partition"; then
 					if [[ "$truenas_sendmail_support" == "No" ]]; then
-						(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
+						(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> ${emailTemp}/attachment_files.txt)
 					else
 						(
 						echo "--${boundary}"
@@ -2676,7 +2677,7 @@ dump_drive_data () {
 		if [[ $json_error_log != "" ]]; then
 			if test -e "${driveDataTemp}/${drive}_${serial1}_a.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_a.txt ${drive}_${serial1}_a.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_a.txt ${drive}_${serial1}_a.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -2690,7 +2691,7 @@ dump_drive_data () {
 
 			if test -e "${driveDataTemp}/${drive}_${serial1}_x.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_x.txt ${drive}_${serial1}_x.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}_x.txt ${drive}_${serial1}_x.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -2710,7 +2711,7 @@ dump_drive_data () {
 
 		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json ${drivetype}_${drive}_${serial1}_API.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_API.json ${drivetype}_${drive}_${serial1}_API.json" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -2724,7 +2725,7 @@ dump_drive_data () {
 
 		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}.json ${drivetype}_${drive}_${serial1}.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}.json ${drivetype}_${drive}_${serial1}.json" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -2748,7 +2749,7 @@ dump_drive_data () {
 
 		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json ${drivetype}_${drive}_${serial1}_Selftest_Log.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Selftest_Log.json ${drivetype}_${drive}_${serial1}_Selftest_Log.json" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -2762,7 +2763,7 @@ dump_drive_data () {
 
 		if test -e "${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json ${drivetype}_${drive}_${serial1}_Error_Log.json" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${driveDataTemp}/${drivetype}_${drive}_${serial1}_Error_Log.json ${drivetype}_${drive}_${serial1}_Error_Log.json" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -2776,7 +2777,7 @@ dump_drive_data () {
 		if [[ $Partition_Backup == "true" ]] && [[ $Attach_Files1 == "true" ]]; then
 			if test -e "${driveDataTemp}/${drive}_${serial1}.partition"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${driveDataTemp}/${drive}_${serial1}.partition ${serial1}_SGDISK_Partition.par" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -2790,7 +2791,7 @@ dump_drive_data () {
 		fi
 		if test -e "${logFolder}/multi_report_errors.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${logFolder}/multi_report_errors.txt multi_report_errors.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${logFolder}/multi_report_errors.txt multi_report_errors.txt" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -2804,8 +2805,8 @@ dump_drive_data () {
 		if test -e "/tmp/drive_test_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
 				
-				if ! grep -q "drive_test_temp.txt" "/tmp/attachment_files.txt"; then 
-					(echo "create_attachment_file /tmp/drive_test_temp.txt drive_test_temp.txt" >> /tmp/attachment_files.txt)
+				if ! grep -q "drive_test_temp.txt" "${emailTemp}/attachment_files.txt"; then 
+					(echo "create_attachment_file /tmp/drive_test_temp.txt drive_test_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
 			(
@@ -2820,8 +2821,8 @@ dump_drive_data () {
 		fi
 		if test -e "/tmp/drive_test_timer_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				if ! grep -q "drive_test_timer_temp.txt" "/tmp/attachment_files.txt"; then
-					(echo "create_attachment_file /tmp/drive_test_timer_temp.txt drive_test_timer_temp.txt" >> /tmp/attachment_files.txt)
+				if ! grep -q "drive_test_timer_temp.txt" "${emailTemp}/attachment_files.txt"; then
+					(echo "create_attachment_file /tmp/drive_test_timer_temp.txt drive_test_timer_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
 				(
@@ -2836,7 +2837,7 @@ dump_drive_data () {
 		fi
 		if test -e "${logFolder}/memory_free.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${logFolder}/memory_free.txt memory_free.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${logFolder}/memory_free.txt memory_free.txt" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
@@ -5633,14 +5634,14 @@ tar_attachments () {
 #### This will tar all -dump file attachments.  Not used for normal operations, only -dump operations.
 
 	# Read all the attachments and tar them.
-	# Input file is /tmp/attachment_files.txt
+	# Input file is ${emailTemp}/attachment_files.txt
 	# Format is file $2 = path/name and $3 = file to be named, ignore $1.
 	
 	while read line; do
 		tar_file=$(echo "$line" | awk '{print $2}')
 		tar -rf "/tmp/dump.tar" $tar_file > /dev/null 2<&1
-	done < /tmp/attachment_files.txt
-	echo "create_attachment_file /tmp/dump.tar dump.tar" > /tmp/attachment_files.txt
+	done < ${emailTemp}/attachment_files.txt
+	echo "create_attachment_file /tmp/dump.tar dump.tar" > ${emailTemp}/attachment_files.txt
 
 }
 
@@ -5681,7 +5682,7 @@ attach_files () {
 		if [[ $output_html != "" ]]; then
 			echo $output_html > /tmp/output.html
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-#				(echo "create_attachment_file /tmp/output.html email_body.html" >> /tmp/attachment_files.txt)
+#				(echo "create_attachment_file /tmp/output.html email_body.html" >> ${emailTemp}/attachment_files.txt)
 				sleep .1		# Do nothing
 			else
 				(
@@ -5700,7 +5701,7 @@ attach_files () {
 		if [[ $Attach_Multi_Report == "true" ]]; then
 			if test -e "/tmp/Old_multi_report_config.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/Old_multi_report_config.txt Old_multi_report_config.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/Old_multi_report_config.txt Old_multi_report_config.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					# Write MIME section header for file attachment (encoded with base64)
@@ -5716,7 +5717,7 @@ attach_files () {
 
 			if test -e "$Config_File_Name"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file $Config_File_Name multi_report_config.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file $Config_File_Name multi_report_config.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					# Write MIME section header for file attachment (encoded with base64)
@@ -5734,7 +5735,7 @@ attach_files () {
 			if test -e $statistical_data_file; then
 				# Write MIME section header for file attachment (encoded with base64)
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file $statistical_data_file Statistical_Data.csv" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file $statistical_data_file Statistical_Data.csv" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5748,17 +5749,17 @@ attach_files () {
 		fi
 
 		if [[ $Attach_TrueNAS_Config == "true" ]]; then
-			if test -e /tmp/$Config_Name; then
+			if test -e ${tempFolder}/$Config_Name; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/$Config_Name ${Config_Name}" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${tempFolder}/$Config_Name ${Config_Name}" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: application/zip"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=${Config_Name}"
-					base64 /tmp/$Config_Name
-					rm /tmp/$Config_Name
+					base64 ${tempFolder}/$Config_Name
+					rm ${tempFolder}/$Config_Name
 					) >> "$logfile"
 				fi
 			fi
@@ -5768,7 +5769,7 @@ attach_files () {
 			$(zpool list > /tmp/zpoollist.txt)
 			if test -e "/tmp/zpoollist.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zpoollist.txt zpoollist.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/zpoollist.txt zpoollist.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5784,7 +5785,7 @@ attach_files () {
 			$(zpool status -v > /tmp/zpoolstatus.txt)
 			if test -e "/tmp/zpoolstatus.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zpoolstatus.txt zpoolstatus.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/zpoolstatus.txt zpoolstatus.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5800,7 +5801,7 @@ attach_files () {
 			$(zfs list > /tmp/zfslist.txt)
 			if test -e "/tmp/zfslist.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zfslist.txt zfslist.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/zfslist.txt zfslist.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5821,7 +5822,7 @@ attach_files () {
 
 			if test -e "/tmp/gptid.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/gptid.txt gptid.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/gptid.txt gptid.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5837,7 +5838,7 @@ attach_files () {
 			if [[ $json_error_log != "" ]]; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
 					printf "%b" "$json_error_log" > /tmp/json_error_log.txt
-					(echo "create_attachment_file /tmp/json_error_log.txt json_error_log.txt" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file /tmp/json_error_log.txt json_error_log.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -5849,19 +5850,19 @@ attach_files () {
 				fi
 			fi
 ##### THE NEXT LINE IS NOT LIKED BY 25.04 BUILD 14 JANUARY 2025
-			$(midclt call smart.test.results | jq > "/tmp/smart_results_all_drives_API.json")
+			$(midclt call smart.test.results | jq > "${tempFolder}/smart_results_all_drives_API.json")
 
-			if test -e "/tmp/smart_results_API.json"; then
+			if test -e "${emailTemp}/smart_results_API.json"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/smart_results_API.json Smart_Results_All_Drives_API.json" >> /tmp/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/smart_results_API.json Smart_Results_All_Drives_API.json" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=Smart_Results_All_Drives_API.json"
-					base64 "/tmp/smart_results_all_drives_API.json"
-					rm "/tmp/smart_results_all_drives_API.json"
+					base64 "${tempFolder}/smart_results_all_drives_API.json"
+					rm "${tempFolder}/smart_results_all_drives_API.json"
 					) >> "$logfile"
 				fi
 			fi
@@ -5874,7 +5875,7 @@ attach_files () {
 		
 		if [ $(grep -wic "New Error Messages" "${spencerReport}") -gt 0 ] || [ $(grep -wic "Previous" "${spencerReport}") -gt 0 ]; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				(echo "create_attachment_file ${spencerReport} spencer_report.txt" >> /tmp/attachment_files.txt)
+				(echo "create_attachment_file ${spencerReport} spencer_report.txt" >> ${emailTemp}/attachment_files.txt)
 			else
 				(
 				echo "--${boundary}"
