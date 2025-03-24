@@ -1301,19 +1301,19 @@ update_MR_script () {
 #
 	echo "      - Removing Old Script Source if it exists"
 	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
-	if test -e "/tmp/multi_report_update.txt"; then rm "/tmp/multi_report_update.txt"; fi
+	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
-		(	mkdir /tmp/Multi-Report
-			cd /tmp/Multi-Report
+		(	mkdir ${tempFolder}/Multi-Report
+			cd ${tempFolder}/Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/multi_report.txt
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Multi_Report_User_Guide.pdf
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Multi_Report_Quick_Start_Guide.pdf
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/changelog.txt
 		)
 
-		GitVersion="$(cat "/tmp/Multi-Report/multi_report.txt" | grep "##### Version" | cut -d 'n' -f2 | cut -d '_' -f 1 | head -1)"
+		GitVersion="$(cat "${updateTemp}/multi_report.txt" | grep "##### Version" | cut -d 'n' -f2 | cut -d '_' -f 1 | head -1)"
 		VersionFilename="$(cat "$SCRIPT_DIR/multi_report.sh" | grep "##### Version" | cut -d 'n' -f2 | cut -d '_' -f 1 | head -1)"
 		echo " "
 		echo "      - Multi-Report current version is: "$VersionFilename
@@ -1329,7 +1329,7 @@ update_MR_script () {
 		if [[ $Keyboard_yn == "y" ]] || [[ $Keyboard_yn == "Y" ]]; then
 			echo "      - Updating Script..."
 
-			sed '5s/.*/TrueNASConfigEmailEncryption="'$TrueNASConfigEmailEncryption'"	 # Set this to "" for no encryption, MUST REMAIN ON LINE 5./' /tmp/Multi-Report/multi_report.txt > /tmp/multi_report_update.txt
+			sed '5s/.*/TrueNASConfigEmailEncryption="'$TrueNASConfigEmailEncryption'"	 # Set this to "" for no encryption, MUST REMAIN ON LINE 5./' ${updateTemp}/multi_report.txt > ${updateTemp}/multi_report_update.txt
 
 			sleep .2
 			# Generate the full file name minus the .txt
@@ -1345,13 +1345,13 @@ update_MR_script () {
 			fi
 
 			# Copy the new multi_report.sh file and set permissions
-			cp /tmp/multi_report_update.txt $SCRIPT_DIR"/"$runfilename
+			cp ${updateTemp}/multi_report_update.txt $SCRIPT_DIR"/"$runfilename
 			chmod 755 $SCRIPT_DIR"/"$runfilename > /dev/null 2<&1
 
 			# Copy the User Guide
-			cp "/tmp/Multi-Report/Multi_Report_User_Guide.pdf" $SCRIPT_DIR"/."
-			cp "/tmp/Multi-Report/Multi_Report_Quick_Start_Guide.pdf" $SCRIPT_DIR"/." > /dev/null 2<&1
-			cp "/tmp/Multi-Report/changelog.txt" $SCRIPT_DIR"/."
+			cp "${updateTemp}/Multi_Report_User_Guide.pdf" $SCRIPT_DIR"/."
+			cp "${updateTemp}/Multi_Report_Quick_Start_Guide.pdf" $SCRIPT_DIR"/." > /dev/null 2<&1
+			cp "${updateTemp}/changelog.txt" $SCRIPT_DIR"/."
 			echo " "
 			echo "      - Script updated, copy of the 'Multi-Report User Guide'"
 			echo "        and 'Quick Start Guide' in your directory."
@@ -1386,16 +1386,16 @@ update_Drive_script () {
 #
 	echo "      - Removing Old Script Source if it exists"
 	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
-	if test -e "/tmp/multi_report_update.txt"; then rm "/tmp/multi_report_update.txt"; fi
+	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
-		(	mkdir /tmp/Multi-Report
-			cd /tmp/Multi-Report
+		(	mkdir ${tempFolder}/Multi-Report
+			cd ${tempFolder}/Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
 		)
-		GitDriveVersion=$(cat "/tmp/Multi-Report/drive_selftest.txt" | grep "##### Version" | cut -d 'n' -f2 | tr -d ' ' | head -1)
+		GitDriveVersion=$(cat "${updateTemp}/drive_selftest.txt" | grep "##### Version" | cut -d 'n' -f2 | tr -d ' ' | head -1)
 		if test -e $SCRIPT_DIR"/drive_selftest.sh"; then
 			VersionDriveFilename=$(cat $SCRIPT_DIR"/drive_selftest.sh" | grep "##### Version" | cut -d 'n' -f2 | tr -d ' ' | head -1)
 		else
@@ -1417,7 +1417,7 @@ update_Drive_script () {
 			echo "      - Updating Script..."
 
 			# Copy the new multi_report.sh file and set permissions
-			cp /tmp/Multi-Report/drive_selftest.txt $SCRIPT_DIR"/drive_selftest.sh"
+			cp ${updateTemp}/drive_selftest.txt $SCRIPT_DIR"/drive_selftest.sh"
 			chmod 755 $SCRIPT_DIR"/drive_selftest.sh" > /dev/null 2<&1
 
 			# Copy the User Guide
@@ -1432,7 +1432,7 @@ update_Drive_script () {
 				
 			### THIS IS NOT COMPLETE AND IS INTENTIONED TO UPDATE THE DRIVE SELF-TEST SCRIPT.
 			# Copy the drive_selftest.sh script.  When it runs, if it sees a newer version, it will automatically update itself.
-			#    cp "/tmp/Multi-Report/drive_selftest.up" $SCRIPT_DIR"/drive_selftest.sh"	# Temporary to get the script on systems.
+			#    cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/drive_selftest.sh"	# Temporary to get the script on systems.
 		else
 			echo "Aborted"
 			Drive_Updated="ABORTED: V"$VersionDriveFilename
@@ -1459,16 +1459,16 @@ update_Sendemail_script () {
 #
 	echo "      - Removing Old Script Source if it exists"
 	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
-	if test -e "/tmp/multi_report_update.txt"; then rm "/tmp/multi_report_update.txt"; fi
+	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
-		(	mkdir /tmp/Multi-Report
-			cd /tmp/Multi-Report
+		(	mkdir ${tempFolder}/Multi-Report
+			cd ${tempFolder}/Multi-Report
 # FOR OXYDE GITHUB
 			curl -LJOs https://raw.githubusercontent.com/oxyde1989/standalone-tn-send-email/refs/heads/main/multireport_sendemail.py
 		)
-		GitSendemailVersion=$(cat /tmp/Multi-Report/multireport_sendemail.py | grep "##### V" | cut -d 'V' -f2 | tr -d ' ')
+		GitSendemailVersion=$(cat ${updateTemp}/multireport_sendemail.py | grep "##### V" | cut -d 'V' -f2 | tr -d ' ')
 		if test -e $SCRIPT_DIR"/mr_sendemail.py"; then
 			VersionSendemailFilename=$(cat $SCRIPT_DIR"/mr_sendemail.py" | grep "##### V" | cut -d 'V' -f2 | tr -d ' ')
 		else
@@ -1489,7 +1489,7 @@ update_Sendemail_script () {
 		if [[ $Keyboard_yn == "y" ]] || [[ $Keyboard_yn == "Y" ]]; then
 			echo "      - Updating Script..."
 			# Copy the new multi_report.sh file and set permissions
-			cp /tmp/Multi-Report/multireport_sendemail.py $SCRIPT_DIR"/mr_sendemail.py"
+			cp ${updateTemp}/multireport_sendemail.py $SCRIPT_DIR"/mr_sendemail.py"
 			echo " "
 			echo "      - Your script has been updated."
 			echo " "
@@ -1537,8 +1537,8 @@ checkforupdate () {
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/multi_report.txt
 		)
 
-		if test -e "/tmp/Multi-Report/multi_report.txt"; then
-			GitVersion="$(cat "/tmp/Multi-Report/multi_report.txt" | grep "##### Version" | cut -d 'n' -f2 | cut -d '_' -f 1 | head -1)"
+		if test -e "${updateTemp}/multi_report.txt"; then
+			GitVersion="$(cat "${updateTemp}/multi_report.txt" | grep "##### Version" | cut -d 'n' -f2 | cut -d '_' -f 1 | head -1)"
 			GitMajorVersionNumber="$(echo $GitVersion | cut -d '.' -f1)"
 			GitMinorVersionNumber="$(echo $GitVersion | cut -d '.' -f2)"
 			convert_to_decimal $GitMajorVersionNumber
@@ -1558,11 +1558,11 @@ checkforupdate () {
 			if [[ $GitMajorVersionNumber -gt $MajorVersionFilename ]] && [[ $VersionFilename != "" ]]; then
 				UpdateAvailable="true"
 				echo " - Major Update"
-				rm /tmp/Multi-Report/multi_report.txt
+				rm ${updateTemp}/multi_report.txt
 			elif [[ $GitMajorVersionNumber -eq $MajorVersionFilename ]] && [[ $GitMinorVersionNumber -gt $MinorVersionFilename ]]; then
 				UpdateAvailable="true"
 				echo " - Minor Update"
-				rm /tmp/Multi-Report/multi_report.txt
+				rm ${updateTemp}/multi_report.txt
 			else
 				echo " - No Update"
 			fi
@@ -1584,8 +1584,8 @@ checkforupdate () {
 			cd Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt			
 		)	
-		if test -e "/tmp/Multi-Report/drive_selftest.txt"; then
-			GitDriveVersion=$(cat "/tmp/Multi-Report/drive_selftest.txt" | grep "##### Version" | cut -d 'n' -f2 | tr -d ' ' | head -1)
+		if test -e "${updateTemp}/drive_selftest.txt"; then
+			GitDriveVersion=$(cat "${updateTemp}/drive_selftest.txt" | grep "##### Version" | cut -d 'n' -f2 | tr -d ' ' | head -1)
 			GitDriveMajorVersionNumber="$(echo $GitDriveVersion | cut -d '.' -f1)"
 			GitDriveMinorVersionNumber="$(echo $GitDriveVersion | cut -d '.' -f2)"
 			convert_to_decimal $GitDriveMajorVersionNumber
@@ -1608,11 +1608,11 @@ checkforupdate () {
 			if [[ $GitDriveMajorVersionNumber -gt $MajorDriveVersionFilename ]] && [[ $VersionDriveFilename != "" ]]; then
 				echo " - Major Update"
 				UpdateDriveAvailable="true"
-				rm /tmp/Multi-Report/drive_selftest.txt
+				rm ${updateTemp}/drive_selftest.txt
 			elif [[ $GitDriveMajorVersionNumber -eq $MajorDriveVersionFilename ]] && [[ $GitDriveMinorVersionNumber -gt $MinorDriveVersionFilename ]]; then
 				UpdateDriveAvailable="true"
 				echo " - Minor Update"
-				rm /tmp/Multi-Report/drive_selftest.txt
+				rm ${updateTemp}/drive_selftest.txt
 			else
 				echo " - No Update"
 			fi		
@@ -1634,8 +1634,8 @@ checkforupdate () {
 				cd Multi-Report
 				curl -LJOs https://raw.githubusercontent.com/oxyde1989/standalone-tn-send-email/refs/heads/main/multireport_sendemail.py
 			)
-			if test -e "/tmp/Multi-Report/multireport_sendemail.py"; then
-				GitSendemailVersion=$(cat "/tmp/Multi-Report/multireport_sendemail.py" | grep "##### V" | cut -d 'V' -f2 | tr -d ' ' | head -1)
+			if test -e "${updateTemp}/multireport_sendemail.py"; then
+				GitSendemailVersion=$(cat "${updateTemp}/multireport_sendemail.py" | grep "##### V" | cut -d 'V' -f2 | tr -d ' ' | head -1)
 				GitSendemailMajorVersionNumber="$(echo $GitSendemailVersion | cut -d '.' -f1)"		
 				GitSendemailMinorVersionNumber="$(echo $GitSendemailVersion | cut -d '.' -f2)"
 				convert_to_decimal $GitSendemailMajorVersionNumber
@@ -1662,11 +1662,11 @@ checkforupdate () {
 				if [[ $GitSendemailMajorVersionNumber -gt $MajorSendemailVersionFilename ]] && [[ $VersionSendemailFilename != "" ]]; then
 					echo " - Major Update"
 					UpdateSendemailAvailable="true"
-					rm /tmp/Multi-Report/multireport_sendemail.py
+					rm ${updateTemp}/multireport_sendemail.py
 				elif [[ $GitSendemailMajorVersionNumber -eq $MajorSendemailVersionFilename ]] && [[ $GitSendemailMinorVersionNumber -gt $MinorSendemailVersionFilename ]]; then
 					echo " - Minor Update"
 					UpdateSendemailAvailable="true"
-					rm /tmp/Multi-Report/multireport_sendemail.py
+					rm ${updateTemp}/multireport_sendemail.py
 				else
 					echo " - No Update"
 				fi		
@@ -1689,8 +1689,8 @@ checkforupdate () {
 			cd Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/messages.txt
 		)		
-		if test -e "/tmp/Multi-Report/messages.txt"; then
-			Messages="$(cat "/tmp/Multi-Report/messages.txt")"
+		if test -e "${updateTemp}/messages.txt"; then
+			Messages="$(cat "${updateTemp}/messages.txt")"
 			if [[ $Messages != "" ]]; then echo "Message from Joe"; fi
 #		else
 #			echo "No GitHub Message Available"
@@ -2224,12 +2224,12 @@ cleanup_files () {
 	if [[ -f "${f[0]}" ]]; then rm /tmp/*.partition; fi
 	f=(/tmp/*.tar)
 	if [[ -f "${f[0]}" ]]; then rm /tmp/*.tar; fi
-	f=(/tmp/zfslist.txt)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/zfslist.txt; fi
-	f=(/tmp/zpoollist.txt)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/zpoollist.txt; fi
-	f=(/tmp/zpoolstatus.txt)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/zpoolstatus.txt; fi
+	f=(${emailTemp}/zfslist.txt)
+	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zfslist.txt; fi
+	f=(${emailTemp}/zpoollist.txt)
+	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zpoollist.txt; fi
+	f=(${emailTemp}/zpoolstatus.txt)
+	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zpoolstatus.txt; fi
 	f=(/tmp/*smart_report*)
 	if [[ -f "${f[0]}" ]]; then rm /tmp/*smart_report*; fi
 	f=(${persistFolder}/truenas-smr-check)
@@ -2257,10 +2257,10 @@ cleanup_files () {
 	if test -e "${emailTemp}/attachment.json"; then rm "${emailTemp}/attachment.json"; fi
 	if test -e "${emailTemp}/attachment_files.txt"; then rm "${emailTemp}/attachment_files.txt"; fi
 	if test -e "${logFolder}/memory_free.txt"; then rm "${logFolder}/memory_free.txt"; fi
-	if test -e "/tmp/gptid.txt"; then rm "/tmp/gptid.txt"; fi
-	if test -e "/tmp/json_error_log.txt"; then rm "/tmp/json_error_log.txt"; fi
+	if test -e "${emailTemp}/gptid.txt"; then rm "${emailTemp}/gptid.txt"; fi
+	if test -e "${emailTemp}/json_error_log.txt"; then rm "${emailTemp}/json_error_log.txt"; fi
 	if test -e "/tmp/logfile_tmp"; then rm "/tmp/logfile_tmp"; fi
-	if test -e "/tmp/output.html"; then rm "/tmp/output.html"; fi
+	if test -e "${emailTemp}/output.html"; then rm "${emailTemp}/output.html"; fi
 	if test -e "/tmp/mr_sendemail.py"; then rm "/tmp/mr_sendemail.py"; fi
 #	if test -e "/tmp/mr_sendemail_cksum.txt"; then rm "/tmp/mr_sendemail_cksum.txt"; fi
 	if test -e "/tmp/attachment_files2.txt"; then rm "/tmp/attachment_files2.txt"; fi
@@ -5680,9 +5680,9 @@ attach_files () {
 		
 		# Write MIME section header for file attachment (encoded with base64)
 		if [[ $output_html != "" ]]; then
-			echo $output_html > /tmp/output.html
+			echo $output_html > ${emailTemp}/output.html
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-#				(echo "create_attachment_file /tmp/output.html email_body.html" >> ${emailTemp}/attachment_files.txt)
+#				(echo "create_attachment_file ${emailTemp}/output.html email_body.html" >> ${emailTemp}/attachment_files.txt)
 				sleep .1		# Do nothing
 			else
 				(
@@ -5690,7 +5690,7 @@ attach_files () {
 				echo "Content-Type: text/html; charset=utf-8"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=email_body.html"
-				base64 "/tmp/output.html"
+				base64 "${emailTemp}/output.html"
 				) >> "$logfile"
 			fi
 		fi	
@@ -5699,9 +5699,9 @@ attach_files () {
 
 	if [[ $Attach_Files1 == "true" ]]; then
 		if [[ $Attach_Multi_Report == "true" ]]; then
-			if test -e "/tmp/Old_multi_report_config.txt"; then
+			if test -e "${emailTemp}/Old_multi_report_config.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/Old_multi_report_config.txt Old_multi_report_config.txt" >> ${emailTemp}/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/Old_multi_report_config.txt Old_multi_report_config.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					# Write MIME section header for file attachment (encoded with base64)
@@ -5709,8 +5709,8 @@ attach_files () {
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=Old_multi_report_config.txt"
-					base64 "/tmp/Old_multi_report_config.txt"
-					rm /tmp/Old_multi_report_config.txt
+					base64 "${emailTemp}/Old_multi_report_config.txt"
+					rm ${emailTemp}/Old_multi_report_config.txt
 					) >> "$logfile"
 				fi
 			fi
@@ -5766,79 +5766,79 @@ attach_files () {
 		fi
 
 		if [[ $dump_all != "0" ]]; then
-			$(zpool list > /tmp/zpoollist.txt)
-			if test -e "/tmp/zpoollist.txt"; then
+			$(zpool list > ${emailTemp}/zpoollist.txt)
+			if test -e "${emailTemp}/zpoollist.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zpoollist.txt zpoollist.txt" >> ${emailTemp}/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/zpoollist.txt zpoollist.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=zpoollist.txt"
-					base64 "/tmp/zpoollist.txt"
-					rm /tmp/zpoollist.txt
+					base64 "${emailTemp}/zpoollist.txt"
+					rm ${emailTemp}/zpoollist.txt
 					) >> "$logfile"
 				fi
 			fi
 
-			$(zpool status -v > /tmp/zpoolstatus.txt)
-			if test -e "/tmp/zpoolstatus.txt"; then
+			$(zpool status -v > ${emailTemp}/zpoolstatus.txt)
+			if test -e "${emailTemp}/zpoolstatus.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zpoolstatus.txt zpoolstatus.txt" >> ${emailTemp}/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/zpoolstatus.txt zpoolstatus.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=zpoolstatus.txt"
-					base64 "/tmp/zpoolstatus.txt"
-					rm /tmp/zpoolstatus.txt
+					base64 "${emailTemp}/zpoolstatus.txt"
+					rm ${emailTemp}/zpoolstatus.txt
 					) >> "$logfile"
 				fi
 			fi
 
-			$(zfs list > /tmp/zfslist.txt)
-			if test -e "/tmp/zfslist.txt"; then
+			$(zfs list > ${emailTemp}/zfslist.txt)
+			if test -e "${emailTemp}/zfslist.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/zfslist.txt zfslist.txt" >> ${emailTemp}/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/zfslist.txt zfslist.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=zfslist.txt"
-					base64 "/tmp/zfslist.txt"
-					rm /tmp/zfslist.txt
+					base64 "${emailTemp}/zfslist.txt"
+					rm ${emailTemp}/zfslist.txt
 					) >> "$logfile"
 				fi
 			fi
 			
 			if [[ $softver == "Linux" ]]; then
-				$(lsblk -o +PARTUUID,NAME,LABEL > /tmp/gptid.txt)
+				$(lsblk -o +PARTUUID,NAME,LABEL > ${emailTemp}/gptid.txt)
 			else
-				$(glabel status > /tmp/gptid.txt)
+				$(glabel status > ${emailTemp}/gptid.txt)
 			fi
 
-			if test -e "/tmp/gptid.txt"; then
+			if test -e "${emailTemp}/gptid.txt"; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					(echo "create_attachment_file /tmp/gptid.txt gptid.txt" >> ${emailTemp}/attachment_files.txt)
+					(echo "create_attachment_file ${emailTemp}/gptid.txt gptid.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
 					echo "Content-Type: text/html"
 					echo "Content-Transfer-Encoding: base64"
 					echo "Content-Disposition: attachment; filename=gptid.txt"
-					base64 "/tmp/gptid.txt"
-					rm /tmp/gptid.txt
+					base64 "${emailTemp}/gptid.txt"
+					rm ${emailTemp}/gptid.txt
 					) >> "$logfile"
 				fi
 			fi
 
 			if [[ $json_error_log != "" ]]; then
 				if [[ "$truenas_sendmail_support" == "No" ]]; then
-					printf "%b" "$json_error_log" > /tmp/json_error_log.txt
-					(echo "create_attachment_file /tmp/json_error_log.txt json_error_log.txt" >> ${emailTemp}/attachment_files.txt)
+					printf "%b" "$json_error_log" > ${emailTemp}/json_error_log.txt
+					(echo "create_attachment_file ${emailTemp}/json_error_log.txt json_error_log.txt" >> ${emailTemp}/attachment_files.txt)
 				else
 					(
 					echo "--${boundary}"
@@ -6708,7 +6708,7 @@ update_config_file () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_config_file"; fi
 	# Lets backup the current config file and send to the user.
 	if test -e "$Config_File_Name"; then
-		cp "$Config_File_Name" /tmp/Old_multi_report_config.txt
+		cp "$Config_File_Name" ${emailTemp}/Old_multi_report_config.txt
 	fi
 	(
 		# Lets convert any old variables into new variables from version 2.4 to 3.1
@@ -7825,9 +7825,9 @@ generate_config_file () {
 								echo "No change"
 							else
 								echo "Writing Passphrase into Script Now..."
-								sed '5s/.*/TrueNASConfigEmailEncryption="'$TrueNASConfigEmailEncryption'"	 # Set this to "" for no encryption or enter some text as your passphrase./' "$mefull" > /tmp/multi_report_update.txt
-								cp "/tmp/multi_report_update.txt" "$mefull"
-								rm "/tmp/multi_report_update.txt"
+								sed '5s/.*/TrueNASConfigEmailEncryption="'$TrueNASConfigEmailEncryption'"	 # Set this to "" for no encryption or enter some text as your passphrase./' "$mefull" > ${updateTemp}/multi_report_update.txt
+								cp "${updateTemp}/multi_report_update.txt" "$mefull"
+								rm "${updateTemp}/multi_report_update.txt"
 							fi
 							echo "You still need to write any other changes made such as an email address."
 							echo "returning..."
@@ -11484,9 +11484,9 @@ No_Drive_Test="false"
 if [[ "$1" == "-dump" || "$3" == "-dump" ]]; then
 	No_Drive_Test="true"
 	Attach_Files1="true"
-	zpool list > /tmp/zpoollist.txt
-	zpool status -v > /tmp/zpoolstatus.txt
-	zfs list -d 0 > /tmp/zfslist.txt
+	zpool list > ${emailTemp}/zpoollist.txt
+	zpool status -v > ${emailTemp}/zpoolstatus.txt
+	zfs list -d 0 > ${emailTemp}/zfslist.txt
 	if [[ "$2" == "all" ]]; then dump_all="2"; echo "Attaching Drive Data, Multi-Report Configuration, Statistics, and TrueNAS Configuration files."; fi
 	if [[ "$2" == "" || "$3" == "-dump" ]]; then dump_all="1"; echo "Attaching Drive Data and Multi-Report Configuration files."; fi
 	if [[ "$2" == "email" || "$2" == "emailextra" || "$2" == "emailall" ]]; then echo "emailing to Joe Schmuck & Attaching Drive Data and Multi-Report Configuration."
@@ -11649,11 +11649,11 @@ fi
 		if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
 			echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
 			echo "this will become a seperate function in the next version of the script."
-			if ! test -e "/tmp/Multi-Report"; then mkdir /tmp/Multi-Report; fi
-			cd /tmp/Multi-Report
+			if ! test -e "/tmp/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
+			cd ${tempFolder}/Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
-			cp "/tmp/Multi-Report/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
+			cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
 			cp "/tmp/Multi-Report/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
 		fi
 		)
@@ -12013,10 +12013,10 @@ fi
 
 cleanup_files
 # For some odd reason this cannot be left in the cleanup_files function or the attachment never happens.  Very odd.  Look into this.
-if test -e "/tmp/Old_multi_report_config.txt"; then rm "/tmp/Old_multi_report_config.txt"; fi
+if test -e "${emailTemp}/Old_multi_report_config.txt"; then rm "${emailTemp}/Old_multi_report_config.txt"; fi
 # There are here becasue it was simple.  Will more to appropriate cleanup area later.
 if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
-if test -e "/tmp/multi_report_update.txt"; then	rm "/tmp/multi_report_update.txt"; fi
+if test -e "${updateTemp}/multi_report_update.txt"; then	rm "${updateTemp}/multi_report_update.txt"; fi
 
 duration=$SECONDS
 if [[ $Develop == "true" ]]; then echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."; fi
