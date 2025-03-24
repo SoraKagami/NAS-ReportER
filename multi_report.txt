@@ -1206,6 +1206,8 @@ nvm_power () {
 check_7zip () {
 	if [[ $Debug_Steps == "true" ]]; then echo "check_7zip"; fi
 	if type "7z" &> /dev/null; then return; fi
+	
+	cd "${updateTemp}"
 
 	# No 7zip is installed, lets go get it.
 	echo "Installing 7-Zip..."
@@ -2211,32 +2213,34 @@ cleanup_files () {
 	### Clean up our temporary files
 	if test -e "${tempFolder}"; then rm -r ${tempFolder}; fi	# If implemented correctly, this should replace everything below.
 	if test -e "${tempFolder}/temp_purge_file.csv"; then rm ${tempFolder}/temp_purge_file.csv; fi
-	if test -e "/tmp/*smart_report*"; then rm /tmp/*smart_report*; fi   # > /dev/null 2>&1
+	if test -e "${emailTemp}/*smart_report*"; then rm ${emailTemp}/*smart_report*; fi   # > /dev/null 2>&1
 	if test -e "${driveDataTemp}"; then rm -r "${driveDataTemp}"; fi   # > /dev/null 2>&1
 	### Clean up multiple drive data files
-	f=(/tmp/*_a.txt)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*_a.txt; fi
-	f=(/tmp/*_x.txt)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*_x.txt; fi
-	f=(/tmp/*.json)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*.json; fi
-	f=(/tmp/*.partition)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*.partition; fi
-	f=(/tmp/*.tar)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*.tar; fi
+	f=(${driveDataTemp}/*_a.txt)
+	if [[ -f "${f[0]}" ]]; then rm ${driveDataTemp}/*_a.txt; fi
+	f=(${driveDataTemp}/*_x.txt)
+	if [[ -f "${f[0]}" ]]; then rm ${driveDataTemp}/*_x.txt; fi
+	f=(${emailTemp}/*.json)
+	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/*.json; fi
+	f=(${driveDataTemp}*.json)
+	if [[ -f "${f[0]}" ]]; then rm ${driveDataTemp}*.json; fi
+	f=(${driveDataTemp}/*.partition)
+	if [[ -f "${f[0]}" ]]; then rm ${driveDataTemp}/*.partition; fi
+	f=(${tempFolder}/*.tar)
+	if [[ -f "${f[0]}" ]]; then rm ${tempFolder}/*.tar; fi
 	f=(${emailTemp}/zfslist.txt)
 	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zfslist.txt; fi
 	f=(${emailTemp}/zpoollist.txt)
 	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zpoollist.txt; fi
 	f=(${emailTemp}/zpoolstatus.txt)
 	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/zpoolstatus.txt; fi
-	f=(/tmp/*smart_report*)
-	if [[ -f "${f[0]}" ]]; then rm /tmp/*smart_report*; fi
+	f=(${emailTemp}/*smart_report*)
+	if [[ -f "${f[0]}" ]]; then rm ${emailTemp}/*smart_report*; fi
 	f=(${persistFolder}/truenas-smr-check)
 	if [[ -f "${f[0]}" ]]; then rm -R ${persistFolder}/truenas-smr-check; fi
 	
-	if [[ -f "/tmp/selftestlog" ]]; then rm /tmp/selftestlog; fi
-#	if [[ -f "/tmp/*.partition" ]]; then rm /tmp/*.partition; fi
+	if [[ -f "${driveDataTemp}/selftestlog" ]]; then rm ${driveDataTemp}/selftestlog; fi
+#	if [[ -f "${driveDataTemp}/*.partition" ]]; then rm ${driveDataTemp}/*.partition; fi
 
 	if [[ -d "/tmp/Multi-Report" ]]; then rm -R "/tmp/Multi-Report"; fi
 
@@ -2253,17 +2257,13 @@ cleanup_files () {
 	if test -e "${tempFolder}/pwenc_secret"; then rm "${tempFolder}/pwenc_secret"; fi
 	if test -e "${tempFolder}/pwenc_secret.md5"; then rm "${tempFolder}/pwenc_secret.md5"; fi
 	if test -e "${tempFolder}/pwenc_secret.sha256"; then rm "${tempFolder}/pwenc_secret.sha256"; fi
-	if test -e "/tmp/drive_selftest_log.txt"; then rm "/tmp/drive_selftest_log.txt"; fi
 	if test -e "${emailTemp}/attachment.json"; then rm "${emailTemp}/attachment.json"; fi
 	if test -e "${emailTemp}/attachment_files.txt"; then rm "${emailTemp}/attachment_files.txt"; fi
 	if test -e "${logFolder}/memory_free.txt"; then rm "${logFolder}/memory_free.txt"; fi
 	if test -e "${emailTemp}/gptid.txt"; then rm "${emailTemp}/gptid.txt"; fi
 	if test -e "${emailTemp}/json_error_log.txt"; then rm "${emailTemp}/json_error_log.txt"; fi
-	if test -e "/tmp/logfile_tmp"; then rm "/tmp/logfile_tmp"; fi
 	if test -e "${emailTemp}/output.html"; then rm "${emailTemp}/output.html"; fi
-	if test -e "/tmp/mr_sendemail.py"; then rm "/tmp/mr_sendemail.py"; fi
-#	if test -e "/tmp/mr_sendemail_cksum.txt"; then rm "/tmp/mr_sendemail_cksum.txt"; fi
-	if test -e "/tmp/attachment_files2.txt"; then rm "/tmp/attachment_files2.txt"; fi
+	if test -e "${emailTemp}/attachment_files2.txt"; then rm "${emailTemp}/attachment_files2.txt"; fi
 
 
 	### Clean up Spencer File
@@ -2357,8 +2357,8 @@ get_sendemail () {
 			curl -LJOs https://raw.githubusercontent.com/oxyde1989/standalone-tn-send-email/refs/heads/main/multireport_sendemail.py
 		)
 
-		cp /tmp/multireport_sendemail.py $SCRIPT_DIR"/mr_sendemail.py"
-		rm /tmp/multireport_sendemail.py
+		cp ${updateTemp}/multireport_sendemail.py $SCRIPT_DIR"/mr_sendemail.py"
+		rm ${updateTemp}/multireport_sendemail.py
 	else
 		echo "github not available, try again later"
 		exit 1
@@ -2489,13 +2489,13 @@ create_Email () {
 
 	#	port_address=$(midclt call system.general.config | jq | grep ui_port | sed "s/[^0-9.]*//g")
 
-		sed 's/\w*.//' ${emailTemp}/attachment_files.txt | sed 's/\s.*$//' > /tmp/attachment_files2.txt
+		sed 's/\w*.//' ${emailTemp}/attachment_files.txt | sed 's/\s.*$//' > ${emailTemp}/attachment_files2.txt
 		sleep .1
 
 		if test -e "/tmp/temp_attach.txt"; then rm /tmp/temp_attach.txt; fi
 		while read line; do
 			attachment+=("$line")
-		done < /tmp/attachment_files2.txt
+		done < ${emailTemp}/attachment_files2.txt
 		
 		# Sendemail Courtesy of @oxyde
 
@@ -2805,7 +2805,7 @@ dump_drive_data () {
 		if test -e "/tmp/drive_test_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
 				
-				if ! grep -q "drive_test_temp.txt" "${emailTemp}/attachment_files.txt"; then 
+				if ! grep -q "/tmp/drive_test_temp.txt" "${emailTemp}/attachment_files.txt"; then 
 					(echo "create_attachment_file /tmp/drive_test_temp.txt drive_test_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
@@ -2821,7 +2821,7 @@ dump_drive_data () {
 		fi
 		if test -e "/tmp/drive_test_timer_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				if ! grep -q "drive_test_timer_temp.txt" "${emailTemp}/attachment_files.txt"; then
+				if ! grep -q "/tmp/drive_test_timer_temp.txt" "${emailTemp}/attachment_files.txt"; then
 					(echo "create_attachment_file /tmp/drive_test_timer_temp.txt drive_test_timer_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
@@ -5639,9 +5639,9 @@ tar_attachments () {
 	
 	while read line; do
 		tar_file=$(echo "$line" | awk '{print $2}')
-		tar -rf "/tmp/dump.tar" $tar_file > /dev/null 2<&1
+		tar -rf "${tempFolder}/dump.tar" $tar_file > /dev/null 2<&1
 	done < ${emailTemp}/attachment_files.txt
-	echo "create_attachment_file /tmp/dump.tar dump.tar" > ${emailTemp}/attachment_files.txt
+	echo "create_attachment_file ${tempFolder}/dump.tar dump.tar" > ${emailTemp}/attachment_files.txt
 
 }
 
