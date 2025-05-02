@@ -783,7 +783,7 @@ re='^[0-9]+$'
 runfilename="multi_report.sh"
 Config_Name=""	# This var is set & referenced in function config_backup(), and also used by attach_files()
 
-### temp files have been converted to variable stored, not stored in /tmp/ as a file. ###
+### temp files have been converted to variable stored, not stored in ${tempFolder}/ as a file. ###
 logfile="${emailTemp}/smart_report_body.tmp"
 logfile_header="${emailTemp}/smart_report_header.tmp"
 boundary="gc0p4Jq0M2Yt08jU534c0p"
@@ -1067,7 +1067,7 @@ check_farm_data () {
 ########## CREATE ATTACHMENT FILE ##########
 # This file will convert and create any required attachments.
 # Call with attachment_file_path and attachment_file_name
-# Example: create_attachement_file /tmp/temp_body_report.txt report.txt
+# Example: create_attachement_file ${tempFolder}/temp_body_report.txt report.txt
 
 create_attachment_file () {
 	if [[ $Debug_Steps == "true" ]]; then echo "create_attachment"; fi
@@ -1354,10 +1354,10 @@ update_MR_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_MR_script"; fi
 	echo "      - Update Script Routine"
 #
-# ENSURE WE DELETE /TMP/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
+# ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
 #
 	echo "      - Removing Old Script Source if it exists"
-	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
@@ -1419,7 +1419,7 @@ update_MR_script () {
 		else
 			echo "Aborted"
 			MR_Updated="ABORTED: V"$VersionFilename
-			if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+			if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 #			exit 0
 		fi
 	else
@@ -1439,10 +1439,10 @@ update_Drive_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_Drive_script"; fi
 	echo "      - Update Script Routine"
 #
-# ENSURE WE DELETE /TMP/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
+# ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
 #
 	echo "      - Removing Old Script Source if it exists"
-	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
@@ -1493,7 +1493,7 @@ update_Drive_script () {
 		else
 			echo "Aborted"
 			Drive_Updated="ABORTED: V"$VersionDriveFilename
-			if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+			if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 #			exit 0
 		fi
 	else
@@ -1512,10 +1512,10 @@ update_Sendemail_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_Sendemail_script"; fi
 	echo "      - Update Script Routine"
 #
-# ENSURE WE DELETE /TMP/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
+# ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
 #
 	echo "      - Removing Old Script Source if it exists"
-	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 	if test -e "${updateTemp}/multi_report_update.txt"; then rm "${updateTemp}/multi_report_update.txt"; fi
 	echo "      - Downloading new script files"
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
@@ -1556,7 +1556,7 @@ update_Sendemail_script () {
 		else
 			echo "Aborted"
 			Sendemail_Updated="ABORTED: V"$VersionSendemailFilename
-			if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+			if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 #			exit 0
 		fi
 	else
@@ -1581,7 +1581,7 @@ checkforupdate () {
 
 	#	Sendemail_Updated="AVAILABLE"
 	echo "Checking for Updates"
-	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
 		# Go git the file
 		(
@@ -2297,6 +2297,7 @@ cleanup_files () {
 	if [[ -f "${driveDataTemp}/selftestlog" ]]; then rm ${driveDataTemp}/selftestlog; fi
 #	if [[ -f "${driveDataTemp}/*.partition" ]]; then rm ${driveDataTemp}/*.partition; fi
 
+	### Leave this original check / rm so that it points to /tmp/Multi-Report, just in case.
 	if [[ -d "/tmp/Multi-Report" ]]; then rm -R "/tmp/Multi-Report"; fi
 
 
@@ -2858,11 +2859,11 @@ dump_drive_data () {
 				) >> "$logfile"
 			fi
 		fi
-		if test -e "/tmp/drive_test_temp.txt"; then
+		if test -e "${tempFolder}/drive_test_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
 				
-				if ! grep -q "/tmp/drive_test_temp.txt" "${emailTemp}/attachment_files.txt"; then 
-					(echo "create_attachment_file /tmp/drive_test_temp.txt drive_test_temp.txt" >> ${emailTemp}/attachment_files.txt)
+				if ! grep -q "${tempFolder}/drive_test_temp.txt" "${emailTemp}/attachment_files.txt"; then 
+					(echo "create_attachment_file ${tempFolder}/drive_test_temp.txt drive_test_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
 			(
@@ -2870,15 +2871,15 @@ dump_drive_data () {
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=drive_test_temp.txt"
-				base64 "/tmp/drive_test_temp.txt"
-				rm "/tmp/drive_test_temp.txt"
+				base64 "${tempFolder}/drive_test_temp.txt"
+				rm "${tempFolder}/drive_test_temp.txt"
 				) >> "$logfile"
 			fi
 		fi
-		if test -e "/tmp/drive_test_timer_temp.txt"; then
+		if test -e "${tempFolder}/drive_test_timer_temp.txt"; then
 			if [[ "$truenas_sendmail_support" == "No" ]]; then
-				if ! grep -q "/tmp/drive_test_timer_temp.txt" "${emailTemp}/attachment_files.txt"; then
-					(echo "create_attachment_file /tmp/drive_test_timer_temp.txt drive_test_timer_temp.txt" >> ${emailTemp}/attachment_files.txt)
+				if ! grep -q "${tempFolder}/drive_test_timer_temp.txt" "${emailTemp}/attachment_files.txt"; then
+					(echo "create_attachment_file ${tempFolder}/drive_test_timer_temp.txt drive_test_timer_temp.txt" >> ${emailTemp}/attachment_files.txt)
 				fi
 			else
 				(
@@ -2886,8 +2887,8 @@ dump_drive_data () {
 				echo "Content-Type: text/html"
 				echo "Content-Transfer-Encoding: base64"
 				echo "Content-Disposition: attachment; filename=drive_test_timer_temp.txt"
-				base64 "/tmp/drive_test_timer_temp.txt"
-				rm "/tmp/drive_test_timer_temp.txt"
+				base64 "${tempFolder}/drive_test_timer_temp.txt"
+				rm "${tempFolder}/drive_test_timer_temp.txt"
 				) >> "$logfile"
 			fi
 		fi
@@ -3274,10 +3275,10 @@ zpool_report () {
 			#### LINUX VERSION OF THIS SECTION
 			drives_in_gptid=$(lsblk -o +PARTUUID,NAME,LABEL | grep -P "(^|[^-*&$!])\b$pool\b" | awk -F" " '{print $7}')
 			zpool_list=$(zpool status -v "$pool")
-#				echo $zpool_list | awk '{print $1 $2}' >> /tmp/pool_to_drive.txt
+#				echo $zpool_list | awk '{print $1 $2}' >> ${tempFolder}/pool_to_drive.txt
 			for longgptid in $drives_in_gptid; do
 				drive_name=$(lsblk -o +PARTUUID,NAME,LABEL | grep -w "$longgptid" | awk -F" " '{print $8}')
-#					echo $drive_name >> /tmp/pool_to_drive.txt
+#					echo $drive_name >> ${tempFolder}/pool_to_drive.txt
 				virtual_drive_test="$(echo ${smartdata5} | grep -i "virtual")"
 					if [[ $Partition_Check == "true" ]]; then
 					sgdisk -v /dev/${drive_name}
@@ -3840,7 +3841,7 @@ get_json_data () {
 get_drive_data () {
 	if [[ $Debug_Steps == "true" ]]; then echo "get_drive_data"; fi
 
-# File /tmp/json_errors.txt is used to write what data did not come from a json file.
+# File ${tempFolder}/json_errors.txt is used to write what data did not come from a json file.
 
 	if [[ $Develop == "true" ]]; then
 		echo " "
@@ -5244,8 +5245,8 @@ detailed_report () {
 
 		if [[ $SDF_DataRecordEnable == "true" ]]; then
 			if [[ $statistical_data_file_created == "1" ]]; then echo "<b>-- Statistical Data File Created.</b><br>" >> "$logfile"; fi
-			if [[ "$(echo $statistical_data_file | grep "/tmp/")" ]]; then
-				echo "<b><span style='color:darkred;'>2) The Statistical Data File is located in the /tmp directory and is not permanent.<br>Recommend changing to a proper dataset.</span></b>" >> "$logfile"
+			if [[ "$(echo $statistical_data_file | grep "${tempFolder}/")" ]]; then
+				echo "<b><span style='color:darkred;'>2) The Statistical Data File is located in the ${tempFolder} directory and is not permanent.<br>Recommend changing to a proper dataset.</span></b>" >> "$logfile"
 			else
 				echo "<b>2) Statistical Data Log (Present) @ ($statistical_data_file)</b>" >> "$logfile"
 			fi
@@ -5290,14 +5291,14 @@ detailed_report () {
 
 		if [[ $External_SMART_Testing == "true" ]]; then
 			echo "<b>4) S.M.A.R.T. Testing External File (v"$VersionDriveFilename") - (Enabled)</b>" >> "$logfile"
-			if [ -f "/tmp/smartdrive_selftest_text.txt" ]; then
-				cat /tmp/smartdrive_selftest_text.txt >> "$logfile"
-				rm /tmp/smartdrive_selftest_text.txt				# Let's clean it up.
+			if [ -f "${tempFolder}/smartdrive_selftest_text.txt" ]; then
+				cat ${tempFolder}/smartdrive_selftest_text.txt >> "$logfile"
+				rm ${tempFolder}/smartdrive_selftest_text.txt				# Let's clean it up.
 			else
 				if [[ $No_External_File == "true" ]]; then
 					echo "   The external file was not present." >> "$logfile"
 				else
-					echo "   No '/tmp/smartdrive_selftest_text.txt' data file" >> "$logfile"
+					echo "   No '${tempFolder}/smartdrive_selftest_text.txt' data file" >> "$logfile"
 				fi
 			fi
 		else
@@ -11493,7 +11494,7 @@ if [[ "$1" == "-cleanup" ]]; then
 	echo "Cleaning up any old left over files."
 	cleanup_files
 	echo " "
-	if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 	echo "All old left over files are gone, Yippie!"
 	echo " "
 	exit 0
@@ -11534,7 +11535,7 @@ fi
 # if -dump all is used, then include config and statistical attachments (dump_all=2).
 # if -dump email is used, send "-dump" data to Joe Schmuck for analysis (dump_all=3).
 # if -dump emailextra | emailall is used, send "-dump" plus smart _a.txt & -x.txt files (dump_all=4).
-# Dump the files into /tmp/ and then email them.
+# Dump the files into ${tempFolder}/ and then email them.
 
 No_Drive_Test="false"
 if [[ "$1" == "-dump" || "$3" == "-dump" ]]; then
@@ -11705,7 +11706,7 @@ fi
 		if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
 			echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
 			echo "this will become a seperate function in the next version of the script."
-			if ! test -e "/tmp/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
+			if ! test -e "${tempFolder}/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
 			cd ${tempFolder}/Multi-Report
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
 			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
@@ -12071,10 +12072,10 @@ cleanup_files
 # For some odd reason this cannot be left in the cleanup_files function or the attachment never happens.  Very odd.  Look into this.
 if test -e "${emailTemp}/Old_multi_report_config.txt"; then rm "${emailTemp}/Old_multi_report_config.txt"; fi
 # There are here becasue it was simple.  Will more to appropriate cleanup area later.
-if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
+if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
 if test -e "${updateTemp}/multi_report_update.txt"; then	rm "${updateTemp}/multi_report_update.txt"; fi
 
 duration=$SECONDS
 if [[ $Develop == "true" ]]; then echo "$(($duration / 60)) minutes and $(($duration % 60)) seconds elapsed."; fi
 
-# All reporting files are left in the /tmp/ directory for troubleshooting and cleaned up when the script is initial run.
+# All reporting files are left in the ${tempFolder}/ directory for troubleshooting and cleaned up when the script is initial run.
