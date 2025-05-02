@@ -965,7 +965,7 @@ trap 'rm -rf ${tempFolderRoot}/multi_report.lock' EXIT 	# Remove the lock direct
 # ARGUMENTS:
 #	1 = (String) Path to File to check for and if it exists, delete it.
 # OUTPUTS:
-#	(None)
+#	If a rm was successful, will report with filename
 # RETURN:
 #	0 = No file found, nothing deleted
 #	1 = File found, deleted
@@ -990,7 +990,7 @@ delete_IfExist () {
 # ARGUMENTS:
 #	1 = (String) Path to folder to check for and if it exists, delete it recursively to remove any files & subfolders inside (-f forced).
 # OUTPUTS:
-#	(None)
+#	If a rm -r was successful, will report with foldername
 # RETURN:
 #	0 = No folder found, nothing deleted
 #	1 = Folder found, deleted
