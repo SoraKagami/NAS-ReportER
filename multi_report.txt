@@ -11712,21 +11712,21 @@ fi
 # GRAB DRIVE-SELFTEST SCRIPT THIS ONE TIME, ONLY BECASUE IT IS NEW.  IN NEXT VERSION, MAKE THIS AN AUTOMATIC UPDATE IF THE FILE IS MISSING.
 # THIS GOES AWAY IN THE NEXT VERSION OR SOMETHING SIMILAR NEEDS TO HAPPEN.  ALSO VERSION CHECKING IS NEEDED TO ENSURE
 # WE ARE USING A COMPATABLE VERSION.  ALSO ADD CHKSUM TO DRIVE-SELFTEST IN NEXT VERSION. AND DO NOT USE HARD CODED FILE NAMES.
-	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
-		# Go git the file
-		( 
-		if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
-			echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
-			echo "this will become a seperate function in the next version of the script."
-			if ! test -e "${tempFolder}/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
-			cd ${tempFolder}/Multi-Report
-			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
-			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
-			cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
-			cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
-		fi
-		)
+if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
+	# Go git the file
+	( 
+	if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
+		echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
+		echo "this will become a seperate function in the next version of the script."
+		if ! test -e "${tempFolder}/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
+		cd ${tempFolder}/Multi-Report
+		curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
+		curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
+		cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
+		cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
 	fi
+	)
+fi
 
 #if [[ $Partition_Check == "true" ]] || [[ $Partition_Backup == "true" ]]; then	# Check to see if the files needed are there.
 #	check_gdisk
