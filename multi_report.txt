@@ -971,12 +971,18 @@ trap 'rm -rf ${tempFolderRoot}/multi_report.lock' EXIT 	# Remove the lock direct
 #	1 = File found, deleted
 #	2 = No input argument was provided, nothing deleted
 #	3 = More than one input argument detected, no deletion attempt made
+#	4 = rm returned an error (a non-zero code)
 #######################################
 delete_IfExist () {
 	if [ $# -eq 0 ]; then return 2; fi	# If no input argument was provided, Return Code: 2
 	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
 	if test -e $1; then
 		rm $1 # Remove file
+		local rmReturnCode=$?
+		if [ $rmReturnCode -ne 0 ]; then
+			echo "delete_IfExist(): rm returned error code: $rmReturnCode"
+			return 4;
+		fi
 		echo "File $1 was removed."
 		return 1	# Done, Return Code: 1
 	fi
@@ -996,12 +1002,18 @@ delete_IfExist () {
 #	1 = Folder found, deleted
 #	2 = No input argument was provided, nothing deleted
 #	3 = More than one input argument detected, no deletion attempt made
+#	4 = rm returned an error (a non-zero code)
 #######################################
 deleteFolder_IfExist () {
 	if [ $# -eq 0 ]; then return 2; fi	# If no input argument was provided, Return Code: 2
 	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
 	if test -e $1; then
 		rm -r -f $1 # Remove everything recursively including the folder, it's files & subfolders. -f flag to force & remove need for user input
+		local rmReturnCode=$?
+		if [ $rmReturnCode -ne 0 ]; then
+			echo "deleteFolder_IfExist(): rm -r -f returned error code: $rmReturnCode"
+			return 4;
+		fi
 		echo "Folder $1 was removed."
 		return 1	# Done, Return Code: 1
 	fi
