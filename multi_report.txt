@@ -18,7 +18,7 @@ Config_File_Name="$SCRIPT_DIR/multi_report_config.txt"
 sessionID=$(date "+%y%m%d%H%M%S%3N")				# sessionID should be unique by using date: yymmddHHMMSSNNN (NNN = 2 most significant nanosecond values)
 tempFolderRoot="$PWD/Multi-Report"					# Used to be /tmp
 logFolder="${tempFolderRoot}/Logs"					# Logging related
-tempFolder="${tempFolderRoot}/Temp/${sessionID}"	# Files here will be deleted
+tempFolder="${tempFolderRoot}/Temp_${sessionID}"	# Files here will be deleted
 persistFolder="${tempFolderRoot}/Persist"			# Anything here may persist. Should at least survive end of script
 emailTemp="${tempFolder}/Email"						# Subfolder of $tempFolder specific to email related uses
 updateTemp="${tempFolder}/Update"					# Subfolder of $tempFolder for update files
@@ -782,6 +782,50 @@ Dump_Loop="0"
 re='^[0-9]+$'
 runfilename="multi_report.sh"
 Config_Name=""	# This var is set & referenced in function config_backup(), and also used by attach_files()
+
+#######################################
+# createFolder_IfNotExist(): If the target folder does not exist, create it
+# GLOBALS:
+#	(None used)
+# ARGUMENTS:
+#	1 = (String) Path to Folder to check for and if it does not exists, attempt to create it.
+# OUTPUTS:
+#	If a rm was successful, will report with filename
+# RETURN:
+#	0 = Success
+#	1 = Folder Exists, not doing anything
+#	2 = No input argument was provided, nothing deleted
+#	3 = More than one input argument detected, no deletion attempt made
+#	4 = mkdir returned an error (a non-zero code)
+#	5 = Error! Unexpected Code Execution state
+#######################################
+createFolder_IfNotExist () {
+	if [ $# -eq 0 ]; then return 2; fi	# If no input argument was provided, Return Code: 2
+	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
+	local targetDir=$1
+	# Does $targetDir exist?
+	if (! test -e "$targetDir"); then
+		# $targetDir doesn't exist, create it
+		mkdir $targetDir
+		local mkdirReturnCode=$?
+		if [ $mkdirReturnCode -ne 0 ]; then
+			echo "createFolder_IfNotExist(): mkdir returned error code: $mkdirReturnCode"
+			return 4;
+		fi
+		return 0	# Done, Return Code: 0
+	else
+		# $targetDir exists, do nothing & finish
+		return 1;
+	fi
+	return 5;
+}
+createFolder_IfNotExist ${tempFolderRoot}
+createFolder_IfNotExist ${logFolder}
+createFolder_IfNotExist ${tempFolder}
+createFolder_IfNotExist ${persistFolder}
+createFolder_IfNotExist ${emailTemp}
+createFolder_IfNotExist ${updateTemp}
+createFolder_IfNotExist ${driveDataTemp}
 
 ### temp files have been converted to variable stored, not stored in ${tempFolder}/ as a file. ###
 logfile="${emailTemp}/smart_report_body.tmp"
