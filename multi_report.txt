@@ -2,7 +2,7 @@
 # shellcheck disable=SC1075,SC2027,SC2034,SC2128,SC2002,SC2004,SC2086,SC2162
 LANG="en_US.UTF-8"
 #
-TrueNASConfigEmailEncryption=""	 # Set this to "" for no encryption, MUST REMAIN ON LINE 5.
+TrueNASConfigEmailEncryption="Th1sIsUns@f3!_T0_13av3_Uns3t!"	 # Set this to "" for no encryption, MUST REMAIN ON LINE 5.
 # NOTE: Some email providers will not send some encrypted file types, such as GMAIL, but .zip files are okay.
 # NOTE: 7zip is used for the compression/encryption and will not be installed unless encryption is enabled.
 
@@ -15,15 +15,16 @@ Config_File_Name="$SCRIPT_DIR/multi_report_config.txt"
 #####################################################
 #####		Setup file storage locations		#####
 #####################################################
-sessionID=$(date "+%y%m%d%H%M%S%3N")				# sessionID should be unique by using date: yymmddHHMMSSNNN (NNN = 2 most significant nanosecond values)
+sessionID=$(date "+%y%m%d%H%M%S")					# sessionID should be unique by using date: yymmddHHMMSS
 tempFolderRoot="$PWD/Multi-Report"					# Used to be /tmp
 logFolder="${tempFolderRoot}/Logs"					# Logging related
-tempFolder="${tempFolderRoot}/Temp_${sessionID}"	# Files here will be deleted
 persistFolder="${tempFolderRoot}/Persist"			# Anything here may persist. Should at least survive end of script
+spencerReport="/tmp/spencer_report.txt"				# Default: /tmp/spencer_report.txt
+tempFolderShared="${tempFolderRoot}/Temp"			# Base shared temp folder - allows for a thorough cleanup in one go
+tempFolder="${tempFolderShared}/${sessionID}"		# Current session's temp files: Everything inside will be deleted
 emailTemp="${tempFolder}/Email"						# Subfolder of $tempFolder specific to email related uses
 updateTemp="${tempFolder}/Update"					# Subfolder of $tempFolder for update files
 driveDataTemp="${tempFolder}/DriveData"				#
-spencerReport="/tmp/spencer_report.txt"				# Default: /tmp/spencer_report.txt
 #####################################################
 
 set -E -o functrace
@@ -449,7 +450,7 @@ add_new_drive_factor="actual"	# This setting will add a new drive to the statist
 								# This will impact only the 30 Day or Month Average, until 30 days have passed.  Default="actual"
  
 ###### TrueNAS config backup settings
-TrueNASConfigEmailEnable="true"		# Set to "true" to save config backup (which renders next two options operational); "false" to keep disable config backups.
+TrueNASConfigEmailEnable="false"		# Set to "true" to save config backup (which renders next two options operational); "false" to keep disable config backups.
 TrueNASConfigEmailDay="Mon"			# Set to the day of the week the config is emailed.  (All, Mon, Tue, Wed, Thu, Fri, Sat, Sun, Month)
 TrueNASConfigBackupSave="false"		# Set to "false" to delete TrueNAS config backup after mail is sent; "true" to keep it in dir below.
 TrueNASConfigBackupLocation="${persistFolder}"	# Directory in which to store the backup FreeNAS config files. (Used to be "/tmp/"
@@ -763,6 +764,8 @@ Use_multi_report_config_values="true"		# A "true" value here will use the $Confi
 											# NOTE: DRIVE_SELFTEST SCRIPT MUST HAVE THIS VALUE ="TRUE" WITHIN IT'S SCRIPT TO ALLOW USE OF THE EXTERNAL CONFIGURATION FILE,
 											# OTHERWISE IT WILL IGNORE THE FILE.
 
+### EXTRA settings
+Disable_Update="true"						# Disable all update checks. This will bypass all attempts to check for updates & prevent downloads without exception if set to true.
 
 ##########################
 ##########################
@@ -804,11 +807,11 @@ createFolder_IfNotExist () {
 	if [ $# -gt 1 ]; then return 3; fi	# If more than 1 input arguments was provided, Return Code: 3
 	local targetDir=$1
 	# Does $targetDir exist?
-	if (! test -e "$targetDir"); then
+	if (! test -e "${targetDir}"); then
 		# $targetDir doesn't exist, create it
-		mkdir $targetDir
+		mkdir "${targetDir}"
 		local mkdirReturnCode=$?
-		if [ $mkdirReturnCode -ne 0 ]; then
+		if [ ${mkdirReturnCode} -ne 0 ]; then
 			echo "createFolder_IfNotExist(): mkdir returned error code: $mkdirReturnCode"
 			return 4;
 		fi
@@ -819,13 +822,23 @@ createFolder_IfNotExist () {
 	fi
 	return 5;
 }
-createFolder_IfNotExist ${tempFolderRoot}
-createFolder_IfNotExist ${logFolder}
-createFolder_IfNotExist ${tempFolder}
-createFolder_IfNotExist ${persistFolder}
-createFolder_IfNotExist ${emailTemp}
-createFolder_IfNotExist ${updateTemp}
-createFolder_IfNotExist ${driveDataTemp}
+
+### Making sure the necessary folders are present. If missing, create them.
+(
+	# echo "Pre-creating folders if they are missing";
+	createFolder_IfNotExist ${tempFolderRoot}
+	#echo $?
+	createFolder_IfNotExist ${logFolder}
+	#echo $?
+	createFolder_IfNotExist ${persistFolder}
+	#echo $?
+	# Temporary folders created later after cleanup_files() has been run, otherwise they'll just vanish and bug out.
+		#createFolder_IfNotExist ${tempFolderShared}
+		#createFolder_IfNotExist ${tempFolder}
+		#createFolder_IfNotExist ${emailTemp}
+		#createFolder_IfNotExist ${updateTemp}
+		#createFolder_IfNotExist ${driveDataTemp}
+)
 
 ### temp files have been converted to variable stored, not stored in ${tempFolder}/ as a file. ###
 logfile="${emailTemp}/smart_report_body.tmp"
@@ -1312,6 +1325,10 @@ nvm_power () {
 check_7zip () {
 	if [[ $Debug_Steps == "true" ]]; then echo "check_7zip"; fi
 	if type "7z" &> /dev/null; then return; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for check_7zip()"; fi
+		return;
+	fi
 	
 	cd "${updateTemp}"
 
@@ -1345,6 +1362,10 @@ check_7zip () {
 
 update_smr () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_smr"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for update_smr()"; fi
+		return;
+	fi
 	#	echo "Downloading SMR-CHECK Script for GitHub"
 	#	echo "Removing Old Script if it exists"
 	if test -e "${persistFolder}/truenas-smr-check"; then rm -R "${persistFolder}/truenas-smr-check"; echo "Directory Removed";fi  # Failed, possible loop
@@ -1370,6 +1391,10 @@ update_smr () {
 
 check_gdisk () {
 	if [[ $Debug_Steps == "true" ]]; then echo "check_gdisk"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for check_gdisk()"; fi
+		return;
+	fi
 	# Check for gdisk and sgdisk (FreeBSD Only)
 	if [[ $softver != "Linux" ]]; then
 		if ! [[ "$(find /usr/ -name "gdisk")" ]]; then
@@ -1408,6 +1433,10 @@ check_gdisk () {
 
 update_MR_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_MR_script"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for update_MR_script()"; fi
+		return;
+	fi
 	echo "      - Update Script Routine"
 #
 # ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
@@ -1493,6 +1522,10 @@ update_MR_script () {
 	
 update_Drive_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_Drive_script"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for update_Drive_script()"; fi
+		return;
+	fi
 	echo "      - Update Script Routine"
 #
 # ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
@@ -1566,6 +1599,10 @@ update_Drive_script () {
 	
 update_Sendemail_script () {
 	if [[ $Debug_Steps == "true" ]]; then echo "update_Sendemail_script"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for update_Sendemail_script()"; fi
+		return;
+	fi
 	echo "      - Update Script Routine"
 #
 # ENSURE WE DELETE ${tempFolder}/MULTI-REPORT DIRECTORY WHEN EITHER WE END THE SCRIPT OR START THE SCRIPT.  MAYBE IN THE UPDATE?
@@ -1634,7 +1671,10 @@ update_Sendemail_script () {
 
 checkforupdate () {
 	if [[ $Debug_Steps == "true" ]]; then echo "checkforupdate"; fi
-
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping checkforupdate()"; fi
+		return;
+	fi
 	#	Sendemail_Updated="AVAILABLE"
 	echo "Checking for Updates"
 	if test -e "${tempFolder}/Multi-Report"; then rm -R "${tempFolder}/Multi-Report"; fi
@@ -2322,7 +2362,7 @@ read_csv () {
 cleanup_files () {
 	if [[ $Debug_Steps == "true" ]]; then echo "cleanup_files"; fi
 	### Clean up our temporary files
-	if test -e "${tempFolder}"; then rm -r ${tempFolder}; fi	# If implemented correctly, this should replace everything below.
+	if test -e "${tempFolderShared}"; then rm -r ${tempFolderShared}; fi	# If implemented correctly, this should replace everything below.
 	if test -e "${tempFolder}/temp_purge_file.csv"; then rm ${tempFolder}/temp_purge_file.csv; fi
 	if test -e "${emailTemp}/*smart_report*"; then rm ${emailTemp}/*smart_report*; fi   # > /dev/null 2>&1
 	if test -e "${driveDataTemp}"; then rm -r "${driveDataTemp}"; fi   # > /dev/null 2>&1
@@ -2459,6 +2499,10 @@ Email_datafile () {
 
 get_sendemail () {
 	if [[ $Debug_Steps == "true" ]]; then echo "get_sendemail"; fi
+	if [[ $Disable_Update == "true" ]]; then
+		if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for get_sendemail()"; fi
+		return;
+	fi
 
 	# Fetch the Python based sendemail.py file.  THIS SHOULD ONLY RUN ONCE TO GET THJE FILE ON THE SYSTEM, AFTER THAT THE UPDAES SECTION TAKES CARE OF IT.
 	# Big thanks goes out to @oxyde
@@ -11425,6 +11469,14 @@ echo " "
 smartdata=""  # Don't think we need this here.
 if [[ $Debug_Steps == "true" ]]; then
 	echo "Debug_Steps Turned On"
+	echo "* \$sessionID = ${sessionID}";
+	echo "* \$tempFolderRoot = ${tempFolderRoot}";
+	echo "* \$logFolder = ${logFolder}";
+	echo "* \$tempFolder = ${tempFolder}";
+	echo "* \$persistFolder = ${persistFolder}";
+	echo "* \$emailTemp = ${emailTemp}";
+	echo "* \$updateTemp = ${updateTemp}";
+	echo "* \$driveDataTemp = ${driveDataTemp}";
 fi
 # Verify all the required_commands are available.
 # If not, generate a message.
@@ -11748,6 +11800,20 @@ fi
 # Cleanup previous run files if anything is left (there shouldn't be).
 cleanup_files
 
+### Creating Temporary Folders for this session:
+(
+	createFolder_IfNotExist ${tempFolderShared}
+	#echo $?
+	createFolder_IfNotExist ${tempFolder}
+	#echo $?
+	createFolder_IfNotExist ${emailTemp}
+	#echo $?
+	createFolder_IfNotExist ${updateTemp}
+	#echo $?
+	createFolder_IfNotExist ${driveDataTemp}
+	#echo $?
+)
+
 # Let's check for a script update.
 if [[ $Check_For_Updates == "true" ]] && [[ "$1" != "-t" && "$1" != "-m" && "$1" != "-dump" ]]; then
 	checkforupdate
@@ -11756,20 +11822,24 @@ fi
 # GRAB DRIVE-SELFTEST SCRIPT THIS ONE TIME, ONLY BECASUE IT IS NEW.  IN NEXT VERSION, MAKE THIS AN AUTOMATIC UPDATE IF THE FILE IS MISSING.
 # THIS GOES AWAY IN THE NEXT VERSION OR SOMETHING SIMILAR NEEDS TO HAPPEN.  ALSO VERSION CHECKING IS NEEDED TO ENSURE
 # WE ARE USING A COMPATABLE VERSION.  ALSO ADD CHKSUM TO DRIVE-SELFTEST IN NEXT VERSION. AND DO NOT USE HARD CODED FILE NAMES.
-if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
-	# Go git the file
-	( 
-	if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
-		echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
-		echo "this will become a seperate function in the next version of the script."
-		if ! test -e "${tempFolder}/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
-		cd ${tempFolder}/Multi-Report
-		curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
-		curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
-		cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
-		cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
+if [[ $Disable_Update == "true" ]]; then
+	if [[ $Debug_Steps == "true" ]]; then echo "Skipping Update check for drive_selftest.sh"; fi
+else
+	if [[ "$(curl -is https://github.com | head -n 1)" ]]; then
+		# Go git the file
+		( 
+		if ! test -e $SCRIPT_DIR"/drive_selftest.sh"; then
+			echo "Installing Drive-Selftest Script.  This is a companion to Multi-Report in order to test the drives out."
+			echo "this will become a seperate function in the next version of the script."
+			if ! test -e "${tempFolder}/Multi-Report"; then mkdir ${tempFolder}/Multi-Report; fi
+			cd ${tempFolder}/Multi-Report
+			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/drive_selftest.txt
+			curl -LJOs https://raw.githubusercontent.com/JoeSchmuck/Multi-Report/refs/heads/main/Drive_Selftest_User_Guide.pdf
+			cp "${updateTemp}/drive_selftest.txt" $SCRIPT_DIR"/"drive_selftest.sh
+			cp "${updateTemp}/Drive_Selftest_User_Guide.pdf" $SCRIPT_DIR"/."
+		fi
+		)
 	fi
-	)
 fi
 
 #if [[ $Partition_Check == "true" ]] || [[ $Partition_Backup == "true" ]]; then	# Check to see if the files needed are there.
