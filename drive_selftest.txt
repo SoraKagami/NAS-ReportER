@@ -96,7 +96,7 @@ Use_multi_report_config_values="true"       # A "true" value here will use the $
 											#  used regardless of any other settings and therefore would utilize the values below. Default="true"
 
 ###### SCRIPT UPDATES
-Check_For_Updates="true"                    # This will check to see if an update is available. Default="true"
+Check_For_Updates="false"                    # This will check to see if an update is available. Default="true"
 Automatic_Selftest_Update="false"           # WARNING !!!  This option will automatically update the Drive_Selftest script if a newer version exists on GitHub
                                             #  with no user interaction. Default = "false"
 
@@ -137,6 +137,10 @@ Drive_List_Length=10                        # This is how many drive IDs to list
 Enable_Logging="true"                       # This will create a text file named "drive_test_xx.txt". Run -clearlog
 LOG_DIR=$SCRIPT_DIR"/DS_Logs"               # The default log directory is the script directory.
 Silent="false"                              # When "true" only error messages will be output to the stdout.
+
+### EXTRA settings
+Debug_Steps="false"							# This var was missing, added since it is still in use.
+Disable_Update="true"						# Disable all update checks. This will bypass all attempts to check for updates & prevent downloads without exception if set to true.
 
 #######################################
 #######################################
@@ -228,6 +232,11 @@ smartctlscan=$(smartctl --scan-open)
 ##########################
 
 checkforupdate () {
+	if [[ $Disable_Update == "true" ]]; then
+		# This is needed since the script appears to be able to self-bypass Check_For_Updates=false when called from multi_report 
+		if [[ $Debug_Steps == "true" ]]; then echo "(Forced) Skipping of checkforupdate()"; fi
+		return;
+	fi
     echo " "
     echo "Checking for Updates"
     if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
@@ -292,7 +301,12 @@ checkforupdate () {
 
     }
 
-    update_Drive_script () {
+update_Drive_script () {
+	if [[ $Disable_Update == "true" ]]; then
+		# This is needed since the script appears to be able to self-bypass Check_For_Updates=false when called from multi_report 
+		if [[ $Debug_Steps == "true" ]]; then echo "(Forced) Skipping of update_Drive_script()"; fi
+		return;
+	fi
     echo "Update Script Routine"
     echo "Removing Old Local Script if it exists"
     if test -e "/tmp/Multi-Report"; then rm -R "/tmp/Multi-Report"; fi
@@ -345,7 +359,7 @@ checkforupdate () {
         exit 0
     fi
 
-    }
+}
 
 convert_to_decimal () {
 if [[ $Debug_Steps == "true" ]]; then echo "convert_to_decimal"; fi
